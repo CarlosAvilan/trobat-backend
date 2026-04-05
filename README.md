@@ -1,43 +1,27 @@
 # trobat-backend
 
-This project was created using the [Ktor Project Generator](https://start.ktor.io).
+Trobat es un sistema de reportes de geolocalización diseñado para ayudar en la búsqueda de niños desaparecidos. Este repositorio contiene el Backend desarrollado en Kotlin.
 
-Here are some useful links to get you started:
+El objetivo principal es permitir que ciudadanos puedan subir avistamientos o fotos de forma anónima para colaborar con investigaciones activas de usuarios registrados.
 
-- [Ktor Documentation](https://ktor.io/docs/home.html)
-- [Ktor GitHub page](https://github.com/ktorio/ktor)
-- The [Ktor Slack chat](https://app.slack.com/client/T09229ZC6/C0A974TJ9). You'll need
-  to [request an invite](https://surveys.jetbrains.com/s3/kotlin-slack-sign-up) to join.
+🛠️ Tecnologías utilizadas
+Lenguaje: Kotlin
 
-## Features
+Framework: Ktor (Motor Netty)
 
-Here's a list of features included in this project:
+Base de Datos: MongoDB Atlas (NoSQL)
 
-| Name                                                                   | Description                                                                        |
-|------------------------------------------------------------------------|------------------------------------------------------------------------------------|
-| [Routing](https://start.ktor.io/p/routing)                             | Provides a structured routing DSL                                                  |
-| [Content Negotiation](https://start.ktor.io/p/content-negotiation)     | Provides automatic content conversion according to Content-Type and Accept headers |
-| [kotlinx.serialization](https://start.ktor.io/p/kotlinx-serialization) | Handles JSON serialization using kotlinx.serialization library                     |
-| [CORS](https://start.ktor.io/p/cors)                                   | Enables Cross-Origin Resource Sharing (CORS)                                       |
+Serialización: Kotlinx Serialization
 
-## Building & Running
+Gestor de Dependencias: Gradle (Kotlin DSL)
 
-To build or run the project, use one of the following tasks:
+🏗️ Arquitectura del Proyecto
+El proyecto sigue una estructura de plugins de Ktor para mantener el código organizado:
 
-| Task                                    | Description                                                          |
-|-----------------------------------------|----------------------------------------------------------------------|
-| `./gradlew test`                        | Run the tests                                                        |
-| `./gradlew build`                       | Build everything                                                     |
-| `./gradlew buildFatJar`                 | Build an executable JAR of the server with all dependencies included |
-| `./gradlew buildImage`                  | Build the docker image to use with the fat JAR                       |
-| `./gradlew publishImageToLocalRegistry` | Publish the docker image locally                                     |
-| `./gradlew run`                         | Run the server                                                       |
-| `./gradlew runDocker`                   | Run using the local docker image                                     |
+Serialization.kt: Configuración de ContentNegotiation para manejar JSON.
 
-If the server starts successfully, you'll see the following output:
+Routing.kt: Definición de los endpoints de la API.
 
-```
-2024-12-04 14:32:45.584 [main] INFO  Application - Application started in 0.303 seconds.
-2024-12-04 14:32:45.682 [main] INFO  Application - Responding at http://0.0.0.0:8080
-```
+Reporte.kt: Modelo de datos (Data Class) para los reportes.
 
+Application.kt: Punto de entrada y conexión a la base de datos.
