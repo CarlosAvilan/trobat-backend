@@ -25,3 +25,8 @@ Routing.kt: Definición de los endpoints de la API.
 Reporte.kt: Modelo de datos (Data Class) para los reportes.
 
 Application.kt: Punto de entrada y conexión a la base de datos.
+
+🚀 Endpoints Principales
+Método,Endpoint,Descripción
+GET,/,Comprobación de estado del servidor.
+GET,/ver-reportes,Obtiene la lista completa de reportes desde MongoDB Atlas.
