@@ -6,6 +6,7 @@ import com.trobatapp.coleccion
 import io.ktor.http.content.*
 import java.io.File
 import io.ktor.server.application.*
+import io.ktor.server.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -13,6 +14,10 @@ import kotlinx.coroutines.flow.toList
 
 fun Application.configureRouting() {
     routing {
+        static("/uploads") {
+            files("uploads")
+        }
+
         get("/") {
             call.respondText("Backend de Trobat conectado!")
         }
@@ -67,7 +72,7 @@ fun Application.configureRouting() {
 
             val ubicacion = Ubicacion(
                 type = "Point",
-                coordinates = listOf(longitud, latitud) // ⚠️ GeoJSON
+                coordinates = listOf(longitud, latitud)
             )
 
             val reporte = Reporte(
