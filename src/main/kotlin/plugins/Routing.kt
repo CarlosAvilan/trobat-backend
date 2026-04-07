@@ -32,6 +32,37 @@ fun Application.configureRouting() {
             }
         }
 
+        get("/reportes-cercanos") {
+
+            val lat = call.request.queryParameters["lat"]?.toDoubleOrNull()
+            val lng = call.request.queryParameters["lng"]?.toDoubleOrNull()
+            val radio = call.request.queryParameters["radio"]?.toDoubleOrNull() ?: 1000.0 // metros
+
+            if (lat == null || lng == null) {
+                call.respond(HttpStatusCode.BadRequest, "Parámetros lat y lng son obligatorios")
+                return@get
+            }
+
+            try {
+                val filtro = org.bson.Document(
+                    "ubicacion", org.bson.Document(
+                        "\$near", org.bson.Document(
+                            "\$geometry", org.bson.Document(
+                                "type", "Point"
+                            ).append("coordinates", listOf(lng, lat))
+                        ).append("\$maxDistance", radio)
+                    )
+                )
+
+                val resultados = coleccion.find(filtro).toList()
+
+                call.respond(resultados)
+
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, e.localizedMessage)
+            }
+        }
+
         post("/crear-reporte") {
 
             val multipart = call.receiveMultipart()
