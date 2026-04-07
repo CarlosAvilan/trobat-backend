@@ -17,9 +17,7 @@ import java.util.UUID
 
 fun Application.configureRouting() {
     routing {
-        static("/uploads") {
-            files("uploads")
-        }
+        staticFiles("/uploads", File("uploads"))
 
         get("/") {
             call.respondText("Backend de Trobat conectado!")
