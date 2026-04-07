@@ -65,7 +65,7 @@ fun Application.configureRouting() {
 
                         val contentType = part.contentType?.toString() ?: ""
 
-                        // 🔴 Validar tipo de archivo
+                        // Validar tipo de archivo
                         if (!contentType.startsWith("image/")) {
                             error = true
                             errorMessage = "Solo se permiten imágenes"
@@ -73,12 +73,12 @@ fun Application.configureRouting() {
                             return@forEachPart
                         }
 
-                        // 🔥 Nombre único
+                        // Nombre único
                         fileName = "${UUID.randomUUID()}_${part.originalFileName}"
 
                         val bytes = part.streamProvider().readBytes()
 
-                        // 🔴 Validar tamaño (5MB)
+                        // Validar tamaño (5MB)
                         if (bytes.size > 5 * 1024 * 1024) {
                             error = true
                             errorMessage = "La imagen es demasiado grande"
@@ -94,7 +94,7 @@ fun Application.configureRouting() {
                 part.dispose()
             }
 
-            // 🔴 Validaciones finales
+            // Validaciones finales
             if (idSolicitud.isBlank()) {
                 call.respond(HttpStatusCode.BadRequest, "id_solicitud es obligatorio")
                 return@post
@@ -110,13 +110,13 @@ fun Application.configureRouting() {
                 return@post
             }
 
-            // 📍 GeoJSON
+            // GeoJSON
             val ubicacion = Ubicacion(
                 type = "Point",
                 coordinates = listOf(longitud, latitud)
             )
 
-            // 🧾 Crear objeto
+            // Crear objeto
             val reporte = Reporte(
                 id_solicitud = idSolicitud,
                 url_foto = "http://localhost:8080/uploads/$fileName",
@@ -126,10 +126,10 @@ fun Application.configureRouting() {
                 fecha = Instant.now().toString()
             )
 
-            // 💾 Guardar en Mongo
+            // Guardar en Mongo
             coleccion.insertOne(reporte)
 
-            // 🧠 Log útil
+            // Log útil
             println("Nuevo reporte: $idSolicitud - $latitud,$longitud")
 
             call.respond(HttpStatusCode.OK, "Reporte creado con imagen")
