@@ -44,19 +44,23 @@ fun Application.configureRouting() {
             }
 
             try {
-                val filtro = org.bson.Document(
-                    "ubicacion", org.bson.Document(
-                        "\$near", org.bson.Document(
-                            "\$geometry", org.bson.Document(
-                                "type", "Point"
-                            ).append("coordinates", listOf(lng, lat))
-                        ).append("\$maxDistance", radio)
+                val pipeline = listOf(
+                    org.bson.Document("\$geoNear", org.bson.Document()
+                        .append("near", org.bson.Document("type", "Point")
+                            .append("coordinates", listOf(lng, lat)))
+                        .append("distanceField", "distancia")
+                        .append("maxDistance", radio)
+                        .append("spherical", true)
                     )
                 )
 
-                val resultados = coleccion.find(filtro).toList()
+                val resultados = coleccion
+                    .withDocumentClass(org.bson.Document::class.java)
+                    .aggregate(pipeline)
+                    .toList()
 
-                call.respond(resultados)
+                val jsonList = resultados.map { it.toJson() }
+                call.respondText(jsonList.toString(), ContentType.Application.Json)
 
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, e.localizedMessage)
