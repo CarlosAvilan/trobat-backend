@@ -1,8 +1,8 @@
-package com.trobatapp.plugins
+package com.trobatapp.routes
 
-import com.trobatapp.Reporte
-import com.trobatapp.ReporteRespuesta
-import com.trobatapp.Ubicacion
+import com.trobatapp.models.Reporte
+import com.trobatapp.models.ReporteRespuesta
+import com.trobatapp.models.Ubicacion
 import com.trobatapp.coleccion
 import io.ktor.http.*
 import io.ktor.http.content.*

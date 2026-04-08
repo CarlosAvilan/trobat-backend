@@ -1,4 +1,4 @@
-package com.trobatapp
+package com.trobatapp.models
 
 import kotlinx.serialization.Serializable
 
@@ -13,13 +13,3 @@ data class Ubicacion(
     val longitud: Double
         get() = coordinates.getOrNull(0) ?: 0.0
 }
-
-@Serializable
-data class Reporte(
-    val id_solicitud: String = "",
-    val url_foto: String = "",
-    val estado: String = "activo",
-    val ubicacion: Ubicacion? = null,
-    val descripcion: String? = null,
-    val fecha: String? = null
-)

@@ -1,4 +1,4 @@
-package com.trobatapp
+package com.trobatapp.models
 
 import kotlinx.serialization.Serializable
 
