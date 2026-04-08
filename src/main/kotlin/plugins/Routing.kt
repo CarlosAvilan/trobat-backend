@@ -1,6 +1,7 @@
 package com.trobatapp.plugins
 
 import com.trobatapp.Reporte
+import com.trobatapp.ReporteRespuesta
 import com.trobatapp.Ubicacion
 import com.trobatapp.coleccion
 import io.ktor.http.*
@@ -29,6 +30,60 @@ fun Application.configureRouting() {
                 call.respond(lista)
             } catch (e: Exception) {
                 call.respondText("Error al leer Atlas: ${e.localizedMessage}")
+            }
+        }
+
+        get("/reportes-cercanos") {
+
+            val lat = call.request.queryParameters["lat"]?.toDoubleOrNull()
+            val lng = call.request.queryParameters["lng"]?.toDoubleOrNull()
+            val radio = call.request.queryParameters["radio"]?.toDoubleOrNull() ?: 1000.0 // metros
+
+            if (lat == null || lng == null) {
+                call.respond(HttpStatusCode.BadRequest, "Parámetros lat y lng son obligatorios")
+                return@get
+            }
+
+            try {
+                val pipeline = listOf(
+                    org.bson.Document("\$geoNear", org.bson.Document()
+                        .append("near", org.bson.Document("type", "Point")
+                            .append("coordinates", listOf(lng, lat)))
+                        .append("distanceField", "distancia")
+                        .append("maxDistance", radio)
+                        .append("spherical", true)
+                    )
+                )
+
+                val resultados = coleccion
+                    .withDocumentClass(org.bson.Document::class.java)
+                    .aggregate(pipeline)
+                    .toList()
+
+                val respuesta = resultados.map { doc ->
+
+                    val ubicacion = doc.get("ubicacion", org.bson.Document::class.java)
+                    val coordinates = ubicacion.getList("coordinates", Number::class.java)
+
+                    val lng = coordinates[0].toDouble()
+                    val lat = coordinates[1].toDouble()
+
+                    val distanciaMetros = (doc.get("distancia") as Number).toDouble()
+
+                    ReporteRespuesta(
+                        id = doc.getString("id_solicitud"),
+                        lat = lat,
+                        lng = lng,
+                        descripcion = doc.getString("descripcion"),
+                        imagen = doc.getString("url_foto"),
+                        distancia_km = distanciaMetros / 1000
+                    )
+                }
+
+                call.respond(respuesta)
+
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, e.localizedMessage)
             }
         }
 
@@ -90,6 +145,11 @@ fun Application.configureRouting() {
                     else -> {}
                 }
                 part.dispose()
+            }
+
+            if (error) {
+                call.respond(HttpStatusCode.BadRequest, errorMessage)
+                return@post
             }
 
             // Validaciones finales
