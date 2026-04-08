@@ -1,6 +1,7 @@
 package com.trobatapp.plugins
 
 import com.trobatapp.Reporte
+import com.trobatapp.ReporteRespuesta
 import com.trobatapp.Ubicacion
 import com.trobatapp.coleccion
 import io.ktor.http.*
@@ -59,8 +60,27 @@ fun Application.configureRouting() {
                     .aggregate(pipeline)
                     .toList()
 
-                val jsonList = resultados.map { it.toJson() }
-                call.respondText(jsonList.toString(), ContentType.Application.Json)
+                val respuesta = resultados.map { doc ->
+
+                    val ubicacion = doc.get("ubicacion", org.bson.Document::class.java)
+                    val coordinates = ubicacion.getList("coordinates", Number::class.java)
+
+                    val lng = coordinates[0].toDouble()
+                    val lat = coordinates[1].toDouble()
+
+                    val distanciaMetros = (doc.get("distancia") as Number).toDouble()
+
+                    ReporteRespuesta(
+                        id = doc.getString("id_solicitud"),
+                        lat = lat,
+                        lng = lng,
+                        descripcion = doc.getString("descripcion"),
+                        imagen = doc.getString("url_foto"),
+                        distancia_km = distanciaMetros / 1000
+                    )
+                }
+
+                call.respond(respuesta)
 
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, e.localizedMessage)
