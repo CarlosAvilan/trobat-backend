@@ -147,6 +147,11 @@ fun Application.configureRouting() {
                 part.dispose()
             }
 
+            if (error) {
+                call.respond(HttpStatusCode.BadRequest, errorMessage)
+                return@post
+            }
+
             // Validaciones finales
             if (idSolicitud.isBlank()) {
                 call.respond(HttpStatusCode.BadRequest, "id_solicitud es obligatorio")
