@@ -4,6 +4,7 @@ import com.trobatapp.models.Reporte
 import com.trobatapp.models.ReporteRespuesta
 import com.trobatapp.models.Ubicacion
 import com.trobatapp.coleccion
+import com.trobatapp.service.IUsuarioService
 import io.ktor.http.*
 import io.ktor.http.content.*
 import java.io.File
@@ -16,8 +17,12 @@ import kotlinx.coroutines.flow.toList
 import java.time.Instant
 import java.util.UUID
 
-fun Application.configureRouting() {
+fun Application.configureRouting(usuarioService: IUsuarioService) {
     routing {
+        //Agrego rutas de usuario
+        usuarioRoutes(usuarioService)
+
+        //Rutas preexistentes
         staticFiles("/uploads", File("uploads"))
 
         get("/") {

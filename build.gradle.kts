@@ -1,3 +1,4 @@
+val ktor_version: String by project
 val kotlin_version: String by project
 val logback_version: String by project
 
@@ -19,14 +20,18 @@ repositories {
 }
 
 dependencies {
-    implementation("io.ktor:ktor-server-core-jvm:2.3.10")
-    implementation("io.ktor:ktor-server-netty-jvm:2.3.10")
-    implementation("io.ktor:ktor-server-content-negotiation-jvm:2.3.10")
-    implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:2.3.10")
-    implementation("io.ktor:ktor-server-cors-jvm:2.3.10")
+    val ktor_version_stable = "2.3.10"
+    implementation("io.ktor:ktor-server-core-jvm:$ktor_version_stable")
+    implementation("io.ktor:ktor-server-netty-jvm:$ktor_version_stable")
+    implementation("io.ktor:ktor-server-content-negotiation-jvm:$ktor_version_stable")
+    implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:$ktor_version_stable")
+    implementation("io.ktor:ktor-server-cors-jvm:$ktor_version_stable")
+    implementation("io.ktor:ktor-server-auth-jvm:$ktor_version_stable")
+    implementation("io.ktor:ktor-server-auth-jwt-jvm:$ktor_version_stable")
+
     implementation("ch.qos.logback:logback-classic:1.4.14")
     implementation("org.mongodb:mongodb-driver-kotlin-coroutine:5.0.0")
 
-    testImplementation("io.ktor:ktor-server-tests-jvm:2.3.10")
+    testImplementation("io.ktor:ktor-server-tests-jvm:$ktor_version_stable")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:1.9.22")
 }
