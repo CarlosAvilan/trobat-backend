@@ -6,6 +6,7 @@ import com.trobatapp.DTO.LoginParamsDTO
 import com.trobatapp.DTO.RegistrarUsuarioParamsDTO
 import com.trobatapp.models.Usuario
 import kotlinx.coroutines.flow.firstOrNull
+import org.mindrot.jbcrypt.BCrypt
 import java.time.Instant
 import java.util.UUID
 
@@ -16,11 +17,14 @@ class IAuthServiceImpl(private val coleccion: MongoCollection<Usuario>) : IAuthS
         val usuarioExistente = encontrarUsuarioPorEmail(params.email)
         if (usuarioExistente != null) return null
 
+        //Encripto password
+        val passwordHasheada = BCrypt.hashpw(params.password, BCrypt.gensalt())
+
         val nuevoUsuario = Usuario(
             id = UUID.randomUUID().toString(), // Generamos un ID único si no usamos ObjectId
             name = params.name,
             email = params.email,
-            password_hash = params.password,
+            password_hash = passwordHasheada,
             role = "user",
             created_at = Instant.now().toString(),
             is_verified = false
@@ -35,6 +39,7 @@ class IAuthServiceImpl(private val coleccion: MongoCollection<Usuario>) : IAuthS
         }
     }
 
+
     override suspend fun encontrarUsuarioPorEmail(email: String): Usuario? {
         return try {
             coleccion.find(Filters.eq("email", email)).firstOrNull()
@@ -46,19 +51,12 @@ class IAuthServiceImpl(private val coleccion: MongoCollection<Usuario>) : IAuthS
 
     override suspend fun loginUsuario(params: LoginParamsDTO): Boolean {
         return try {
-            val usuarioExistente = encontrarUsuarioPorEmail(params.email)
-
-            if (usuarioExistente != null && params.password == usuarioExistente.password_hash){
-                return true
-            } else {
-                return false
-            }
-
+            val usuario = encontrarUsuarioPorEmail(params.email) ?: return false
+            BCrypt.checkpw(params.password, usuario.password_hash)
         } catch (e: Exception) {
             println("Error al loguear usuario: ${e.message}")
             false
         }
-
     }
 
 }
