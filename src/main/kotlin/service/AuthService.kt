@@ -2,13 +2,14 @@ package com.trobatapp.service
 
 import com.mongodb.client.model.Filters
 import com.mongodb.kotlin.client.coroutine.MongoCollection
+import com.trobatapp.DTO.LoginParamsDTO
 import com.trobatapp.DTO.RegistrarUsuarioParamsDTO
 import com.trobatapp.models.Usuario
 import kotlinx.coroutines.flow.firstOrNull
 import java.time.Instant
 import java.util.UUID
 
-class IUsuarioServiceImpl(private val coleccion: MongoCollection<Usuario>) : IUsuarioService {
+class IAuthServiceImpl(private val coleccion: MongoCollection<Usuario>) : IAuthService {
 
     override suspend fun registrarUsuario(params: RegistrarUsuarioParamsDTO): Usuario? {
 
@@ -41,6 +42,23 @@ class IUsuarioServiceImpl(private val coleccion: MongoCollection<Usuario>) : IUs
             println("Error al buscar usuario: ${e.message}")
             null
         }
+    }
+
+    override suspend fun loginUsuario(params: LoginParamsDTO): Boolean {
+        return try {
+            val usuarioExistente = encontrarUsuarioPorEmail(params.email)
+
+            if (usuarioExistente != null && params.password == usuarioExistente.password_hash){
+                return true
+            } else {
+                return false
+            }
+
+        } catch (e: Exception) {
+            println("Error al loguear usuario: ${e.message}")
+            false
+        }
+
     }
 
 }

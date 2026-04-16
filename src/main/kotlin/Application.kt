@@ -8,7 +8,7 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import com.trobatapp.plugins.* // Importante para encontrar configureRouting
 import com.trobatapp.routes.configureRouting
-import com.trobatapp.service.IUsuarioServiceImpl
+import com.trobatapp.service.IAuthServiceImpl
 
 // Conexión a MongoDB Atlas
 val uri = "mongodb+srv://trobatDBuser:4trob.yikes,,8@clustertrobat.mx4yx3s.mongodb.net/?retryWrites=true&w=majority"
@@ -25,5 +25,5 @@ fun main() {
 
 fun Application.module() {
     configureSerialization() // Para que el JSON funcione
-    configureRouting(IUsuarioServiceImpl(coleccionUsuarios))      // Para que las rutas funcionen
+    configureRouting(IAuthServiceImpl(coleccionUsuarios))      // Para que las rutas funcionen
 }
