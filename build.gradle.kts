@@ -28,6 +28,7 @@ dependencies {
     implementation("io.ktor:ktor-server-cors-jvm:$ktor_version_stable")
     implementation("io.ktor:ktor-server-auth-jvm:$ktor_version_stable")
     implementation("io.ktor:ktor-server-auth-jwt-jvm:$ktor_version_stable")
+    implementation("io.ktor:ktor-server-auth-jwt-jvm:${ktor_version_stable}")
     implementation("org.mindrot:jbcrypt:0.4")
 
     implementation("ch.qos.logback:logback-classic:1.4.14")

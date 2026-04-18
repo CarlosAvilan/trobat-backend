@@ -1,14 +1,21 @@
 package com.trobatapp.service
 
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
 import com.mongodb.client.model.Filters
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import com.trobatapp.DTO.LoginParamsDTO
 import com.trobatapp.DTO.RegistrarUsuarioParamsDTO
+import com.trobatapp.jwtAudience
+import com.trobatapp.jwtIssuer
+import com.trobatapp.jwtSecret
 import com.trobatapp.models.Usuario
 import kotlinx.coroutines.flow.firstOrNull
 import org.mindrot.jbcrypt.BCrypt
 import java.time.Instant
+import java.util.Date
 import java.util.UUID
+import com.mongodb.client.model.Updates
 
 class IAuthServiceImpl(private val coleccion: MongoCollection<Usuario>) : IAuthService {
 
@@ -49,14 +56,48 @@ class IAuthServiceImpl(private val coleccion: MongoCollection<Usuario>) : IAuthS
         }
     }
 
-    override suspend fun loginUsuario(params: LoginParamsDTO): Boolean {
-        return try {
-            val usuario = encontrarUsuarioPorEmail(params.email) ?: return false
-            BCrypt.checkpw(params.password, usuario.password_hash)
-        } catch (e: Exception) {
-            println("Error al loguear usuario: ${e.message}")
-            false
+    override suspend fun loginUsuario(params: LoginParamsDTO): String? {
+        val usuario = encontrarUsuarioPorEmail(params.email) ?: return null
+        val passwordCorrecta = BCrypt.checkpw(params.password, usuario.password_hash)
+
+        return if (passwordCorrecta) {
+            // Si viene un token, lo agregamos a la lista en la DB
+            params.fcmToken?.let { token ->
+                try {
+                    coleccion.updateOne(
+                        Filters.eq("email", usuario.email),
+                        Updates.addToSet("fcm_tokens", token)
+                    )
+                } catch (e: Exception) {
+                    println("Error al guardar FCM Token: ${e.message}")
+                }
+            }
+
+            // Generar el Token
+            JWT.create()
+                .withAudience(jwtAudience)
+                .withIssuer(jwtIssuer)
+                .withClaim("email", usuario.email)
+                .withClaim("userId", usuario.id)
+                .withExpiresAt(Date(System.currentTimeMillis() + 3600000)) // Expira en 1 hora
+                .sign(Algorithm.HMAC256(jwtSecret))
+        } else {
+            null
         }
     }
 
+    override suspend fun logoutUsuario(email: String, fcmToken: String): Boolean {
+        return try {
+            // Usamos $pull para remover específicamente ese token de la lista
+            val resultado = coleccion.updateOne(
+                Filters.eq("email", email),
+                Updates.pull("fcm_tokens", fcmToken)
+            )
+            // Retornamos true si se encontró al usuario y se procesó la solicitud
+            resultado.matchedCount > 0
+        } catch (e: Exception) {
+            println("Error en logout: ${e.message}")
+            false
+        }
+    }
 }
