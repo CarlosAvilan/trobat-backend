@@ -65,15 +65,15 @@ fun Application.configureRouting() {
                     val ubicacion = doc.get("ubicacion", org.bson.Document::class.java)
                     val coordinates = ubicacion.getList("coordinates", Number::class.java)
 
-                    val lng = coordinates[0].toDouble()
-                    val lat = coordinates[1].toDouble()
+                    val docLng = coordinates[0].toDouble()
+                    val docLat = coordinates[1].toDouble()
 
                     val distanciaMetros = (doc.get("distancia") as Number).toDouble()
 
                     ReporteRespuesta(
                         id = doc.getString("id_solicitud"),
-                        lat = lat,
-                        lng = lng,
+                        lat = docLat,
+                        lng = docLng,
                         descripcion = doc.getString("descripcion"),
                         imagen = doc.getString("url_foto"),
                         distancia_km = distanciaMetros / 1000

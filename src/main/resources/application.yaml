@@ -1,6 +1,12 @@
 ktor:
   deployment:
-    port: 8080
+    port: 8081
   application:
     modules:
       - com.trobatapp.ApplicationKt.module
+
+jwt:
+  secret: "trobat-super-secret-key-change-in-production"
+  issuer: "trobat-backend"
+  audience: "trobat-app"
+  realm: "Trobat API"

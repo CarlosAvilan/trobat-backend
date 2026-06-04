@@ -10,6 +10,14 @@ class ApplicationTest {
 
     @Test
     fun testRoot() = testApplication {
+        environment {
+            config = io.ktor.server.config.MapApplicationConfig(
+                "jwt.secret" to "test-secret",
+                "jwt.issuer" to "test-issuer",
+                "jwt.audience" to "test-audience",
+                "jwt.realm" to "test-realm"
+            )
+        }
         application {
             module()
         }
