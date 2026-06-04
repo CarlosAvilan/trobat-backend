@@ -1,9 +1,14 @@
 package com.trobatapp.routes
 
+import com.trobatapp.models.MensajeResponse
 import com.trobatapp.models.Reporte
 import com.trobatapp.models.ReporteRespuesta
 import com.trobatapp.models.Ubicacion
 import com.trobatapp.coleccion
+import com.trobatapp.services.NotificationService
+import com.trobatapp.services.PushNotification
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import io.ktor.http.*
 import io.ktor.http.content.*
 import java.io.File
@@ -22,6 +27,25 @@ fun Application.configureRouting() {
 
         get("/") {
             call.respondText("Backend de Trobat conectado!")
+        }
+
+        // TODO: eliminar antes de producción
+        post("/test-notificacion") {
+            val body = try {
+                call.receive<JsonObject>()
+            } catch (e: Exception) {
+                return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Cuerpo inválido"))
+            }
+            val token   = body["token"]?.jsonPrimitive?.content   ?: return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("token requerido"))
+            val titulo  = body["titulo"]?.jsonPrimitive?.content  ?: return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("titulo requerido"))
+            val mensaje = body["mensaje"]?.jsonPrimitive?.content ?: return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("mensaje requerido"))
+
+            val messageId = NotificationService.sendToToken(token, PushNotification(title = titulo, body = mensaje))
+            if (messageId != null) {
+                call.respond(mapOf("messageId" to messageId))
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, MensajeResponse("Error al enviar la notificación"))
+            }
         }
 
         get("/ver-reportes") {
@@ -194,4 +218,5 @@ fun Application.configureRouting() {
         }
     }
 }
+
 

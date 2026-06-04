@@ -2,6 +2,7 @@ package com.trobatapp
 
 import com.mongodb.client.model.Indexes
 import com.mongodb.kotlin.client.coroutine.MongoClient
+import com.trobatapp.config.configureFirebase
 import com.trobatapp.models.Reporte
 import com.trobatapp.service.AuthServiceImpl
 import io.ktor.server.application.*
@@ -31,6 +32,8 @@ fun main() {
 }
 
 fun Application.module() {
+    configureFirebase()
+
     val authService = AuthServiceImpl(usuarios, oficiales)
 
     configureHTTP()
