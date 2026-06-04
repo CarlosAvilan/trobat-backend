@@ -14,7 +14,7 @@ import com.trobatapp.routes.configureRouting
 import com.trobatapp.routes.configureUsuariosRouting
 import org.bson.Document
 
-val uri = "mongodb+srv://trobatDBuser:4trob.yikes,,8@clustertrobat.mx4yx3s.mongodb.net/?retryWrites=true&w=majority"
+val uri = System.getenv("MONGODB_URI") ?: error("MONGODB_URI no configurado")
 val client = MongoClient.create(uri)
 val database = client.getDatabase("TrobatDB")
 
