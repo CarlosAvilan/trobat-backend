@@ -67,7 +67,7 @@ fun Application.configureUsuariosRouting() {
                 get {
                     if (!call.verificarRol("oficial")) return@get
                     try {
-                        val lista = oficiales.find().toList().map { it.toOficialResponse() }
+                        val lista = oficiales.find(Filters.exists("email_institucional")).toList().map { it.toOficialResponse() }
                         call.respond(lista)
                     } catch (e: Exception) {
                         call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))

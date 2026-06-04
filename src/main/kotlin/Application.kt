@@ -22,7 +22,7 @@ val coleccion = database.getCollection<Reporte>("reportes_fotos")
 val casos = database.getCollection<Document>("casos")
 val reportes = database.getCollection<Document>("reportes")
 val usuarios = database.getCollection<Document>("usuarios")
-val oficiales = database.getCollection<Document>("oficiales")
+val oficiales = database.getCollection<Document>("usuarios")
 
 fun main() {
     embeddedServer(Netty, port = 8081, host = "0.0.0.0", module = Application::module)
