@@ -43,3 +43,12 @@ data class ReporteCasoResponse(
     val datos_contacto: DatosContacto,
     val validado: Boolean
 )
+
+@Serializable
+data class ReportesPaginados(
+    val data: List<ReporteCasoResponse>,
+    val total: Long,
+    val page: Int,
+    val limit: Int,
+    val hasMore: Boolean
+)

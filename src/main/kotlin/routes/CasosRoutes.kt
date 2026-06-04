@@ -25,9 +25,22 @@ fun Application.configureCasosRouting() {
             // --- PÚBLICO ---
 
             get {
+                val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 20
                 try {
-                    val lista = casos.find().toList().map { it.toCasoResponse() }
-                    call.respond(lista)
+                    val total = casos.countDocuments()
+                    val lista = casos.find()
+                        .skip(page * limit)
+                        .limit(limit)
+                        .toList()
+                        .map { it.toCasoResponse() }
+                    call.respond(CasosPaginados(
+                        data = lista,
+                        total = total,
+                        page = page,
+                        limit = limit,
+                        hasMore = (page * limit + lista.size).toLong() < total
+                    ))
                 } catch (e: Exception) {
                     call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))
                 }

@@ -92,14 +92,27 @@ fun Application.configureReportesRouting() {
 
                 get {
                     val casoId = call.request.queryParameters["caso_id"]
+                    val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+                    val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 20
                     val filtro = if (casoId != null && ObjectId.isValid(casoId))
                         Filters.eq("caso_id", ObjectId(casoId))
                     else
                         Document()
 
                     try {
-                        val lista = reportes.find(filtro).toList().map { it.toReporteCasoResponse() }
-                        call.respond(lista)
+                        val total = reportes.countDocuments(filtro)
+                        val lista = reportes.find(filtro)
+                            .skip(page * limit)
+                            .limit(limit)
+                            .toList()
+                            .map { it.toReporteCasoResponse() }
+                        call.respond(ReportesPaginados(
+                            data = lista,
+                            total = total,
+                            page = page,
+                            limit = limit,
+                            hasMore = (page * limit + lista.size).toLong() < total
+                        ))
                     } catch (e: Exception) {
                         call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))
                     }

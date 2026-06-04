@@ -47,3 +47,12 @@ data class MensajeResponse(val mensaje: String)
 
 @Serializable
 data class CrearCasoResponse(val id: String, val mensaje: String)
+
+@Serializable
+data class CasosPaginados(
+    val data: List<CasoResponse>,
+    val total: Long,
+    val page: Int,
+    val limit: Int,
+    val hasMore: Boolean
+)
