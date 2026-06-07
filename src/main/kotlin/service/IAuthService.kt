@@ -7,4 +7,5 @@ interface IAuthService {
     suspend fun loginUsuario(email: String, password: String, fcmToken: String?): TokenResponse?
     suspend fun loginOficial(emailInstitucional: String, password: String, fcmToken: String?): TokenResponse?
     suspend fun logoutUsuario(id: String, role: String, fcmToken: String): Boolean
+    suspend fun resetPasswordOficial(emailInstitucional: String, nuevaPassword: String): Boolean
 }

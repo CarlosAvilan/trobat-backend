@@ -89,6 +89,18 @@ class AuthServiceImpl(
         )
     }
 
+    override suspend fun resetPasswordOficial(emailInstitucional: String, nuevaPassword: String): Boolean {
+        val existe = oficiales.find(Filters.eq("email_institucional", emailInstitucional)).firstOrNull()
+            ?: return false
+
+        val nuevoHash = BCrypt.hashpw(nuevaPassword, BCrypt.gensalt())
+        val result = oficiales.updateOne(
+            Filters.eq("email_institucional", emailInstitucional),
+            Updates.set("hash_contrasenia", nuevoHash)
+        )
+        return result.matchedCount > 0
+    }
+
     override suspend fun logoutUsuario(id: String, role: String, fcmToken: String): Boolean {
         val collection = if (role == "oficial") oficiales else usuarios
         return try {

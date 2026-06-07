@@ -63,6 +63,25 @@ fun Application.configureAuthRouting(authService: IAuthService) {
                 }
             }
 
+            post("/reset-password/oficial") {
+                val req = try {
+                    call.receive<ResetPasswordOficialRequest>()
+                } catch (e: Exception) {
+                    return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Cuerpo inválido"))
+                }
+
+                if (req.email_institucional.isBlank() || req.nueva_password.isBlank()) {
+                    return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("email_institucional y nueva_password son obligatorios"))
+                }
+
+                val exito = authService.resetPasswordOficial(req.email_institucional, req.nueva_password)
+                if (exito) {
+                    call.respond(MensajeResponse("Contraseña actualizada correctamente"))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, MensajeResponse("Oficial no encontrado"))
+                }
+            }
+
             authenticate("auth-jwt") {
                 post("/logout") {
                     val principal = call.principal<JWTPrincipal>()

@@ -59,3 +59,9 @@ data class OficialResponse(
 data class AgregarFcmTokenRequest(
     val fcm_token: String
 )
+
+@Serializable
+data class ResetPasswordOficialRequest(
+    val email_institucional: String,
+    val nueva_password: String
+)
