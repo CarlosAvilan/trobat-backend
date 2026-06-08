@@ -39,3 +39,4 @@ out/
 local.properties
 .env
 start.ps1
+src/main/resources/firebase-service-account.json
