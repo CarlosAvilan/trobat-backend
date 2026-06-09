@@ -1,5 +1,8 @@
 package com.trobatapp
 
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
 import com.mongodb.client.model.Indexes
 import com.mongodb.kotlin.client.coroutine.MongoClient
 import com.trobatapp.models.Reporte
@@ -26,8 +29,21 @@ val usuarios = database.getCollection<Document>("usuarios")
 val oficiales = database.getCollection<Document>("usuarios")
 
 fun main() {
+    initFirebase()
     embeddedServer(Netty, port = 8081, host = "0.0.0.0", module = Application::module)
         .start(wait = true)
+}
+
+fun initFirebase() {
+    if (FirebaseApp.getApps().isNotEmpty()) return
+    val serviceAccount = object {}.javaClass.classLoader
+        .getResourceAsStream("firebase-service-account.json")
+        ?: error("firebase-service-account.json no encontrado en resources")
+    val options = FirebaseOptions.builder()
+        .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+        .setStorageBucket("trobat-40cea.firebasestorage.app")
+        .build()
+    FirebaseApp.initializeApp(options)
 }
 
 fun Application.module() {

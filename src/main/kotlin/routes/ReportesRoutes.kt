@@ -5,15 +5,20 @@ import com.mongodb.client.model.Updates
 import com.trobatapp.casos
 import com.trobatapp.models.*
 import com.trobatapp.reportes
+import com.trobatapp.service.FirebaseStorageService
 import com.trobatapp.utils.verificarRol
 import io.ktor.http.*
+import io.ktor.http.content.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import org.bson.Document
 import org.bson.types.ObjectId
 import java.time.Instant
@@ -46,10 +51,35 @@ fun Application.configureReportesRouting() {
 
             // --- PÚBLICO: crear reporte (avistamiento anónimo) ---
             post {
-                val req = try {
-                    call.receive<CrearReporteRequest>()
+                var fotoBytes: ByteArray? = null
+                var datosJson: String? = null
+
+                try {
+                    val multipart = call.receiveMultipart()
+                    multipart.forEachPart { part ->
+                        when (part) {
+                            is PartData.FileItem -> {
+                                if (part.name == "foto") {
+                                    fotoBytes = withContext(Dispatchers.IO) { part.streamProvider().readBytes() }
+                                }
+                            }
+                            is PartData.FormItem -> {
+                                if (part.name == "datos") datosJson = part.value
+                            }
+                            else -> {}
+                        }
+                        part.dispose()
+                    }
                 } catch (e: Exception) {
-                    return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Cuerpo inválido: ${e.localizedMessage}"))
+                    return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Multipart inválido: ${e.localizedMessage}"))
+                }
+
+                val req = try {
+                    Json.decodeFromString<CrearReporteRequest>(
+                        datosJson ?: return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Campo 'datos' requerido"))
+                    )
+                } catch (e: Exception) {
+                    return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("datos inválido: ${e.localizedMessage}"))
                 }
 
                 if (!ObjectId.isValid(req.caso_id))
@@ -58,6 +88,14 @@ fun Application.configureReportesRouting() {
                 val casoExiste = casos.find(Filters.eq("_id", ObjectId(req.caso_id))).firstOrNull()
                 if (casoExiste == null)
                     return@post call.respond(HttpStatusCode.NotFound, MensajeResponse("Caso no encontrado"))
+
+                val photoUrl: String? = fotoBytes?.takeIf { it.isNotEmpty() }?.let { bytes ->
+                    try {
+                        withContext(Dispatchers.IO) { FirebaseStorageService.uploadImage(bytes) }
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
 
                 val locationDoc = Document("type", req.location.type)
                     .append("coordinates", req.location.coordinates)
@@ -72,7 +110,7 @@ fun Application.configureReportesRouting() {
                     .append("timestamp", Date.from(Instant.now()))
                     .append("prioridad_policial", req.prioridad_policial)
                     .append("descripcion", req.descripcion)
-                    .append("photo_url", req.photo_url)
+                    .append("photo_url", photoUrl)
                     .append("metadata_seguridad", metaDoc)
                     .append("datos_contacto", contactDoc)
                     .append("validado", false)
