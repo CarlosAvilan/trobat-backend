@@ -35,6 +35,9 @@ out/
 ### VS Code ###
 .vscode/
 
+### Docs locales ###
+*.md
+
 ### Local config ###
 local.properties
 .env
