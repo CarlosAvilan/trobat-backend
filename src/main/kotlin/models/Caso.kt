@@ -19,6 +19,19 @@ data class RepresentanteExterno(
 )
 
 @Serializable
+data class Caso(
+    val id: String = "",
+    val oficial_administrador_id: String = "",
+    val agentes_asignados: List<String> = emptyList(),
+    val desaparecido: Desaparecido = Desaparecido(),
+    val representante_externo: RepresentanteExterno = RepresentanteExterno(),
+    val datos_contacto_policia: DatosContacto = DatosContacto(),
+    val estado: String = "investigacion_activa",
+    val total_reportes: Int = 0,
+    val fecha_creacion: String = ""
+)
+
+@Serializable
 data class CrearCasoRequest(
     val oficial_administrador_id: String,
     val agentes_asignados: List<String> = emptyList(),

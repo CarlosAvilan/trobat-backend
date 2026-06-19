@@ -188,6 +188,21 @@ fun Application.configureCasosRouting() {
 }
 
 private fun Document.toCasoResponse(): CasoResponse {
+    val caso = toCasoEntity()
+    return CasoResponse(
+        id = caso.id,
+        oficial_administrador_id = caso.oficial_administrador_id,
+        agentes_asignados = caso.agentes_asignados,
+        desaparecido = caso.desaparecido,
+        representante_externo = caso.representante_externo,
+        datos_contacto_policia = caso.datos_contacto_policia,
+        estado = caso.estado,
+        total_reportes = caso.total_reportes,
+        fecha_creacion = caso.fecha_creacion
+    )
+}
+
+private fun Document.toCasoEntity(): Caso {
     val desDoc = get("desaparecido", Document::class.java) ?: Document()
     val repDoc = get("representante_externo", Document::class.java) ?: Document()
     val datosContactoPoliciaDoc = get("datos_contacto_policia", Document::class.java) ?: Document()
@@ -215,7 +230,7 @@ private fun Document.toCasoResponse(): CasoResponse {
         getString("oficial_administrador_id") ?: ""
     }
 
-    return CasoResponse(
+    return Caso(
         id = getObjectId("_id").toHexString(),
         oficial_administrador_id = oficialId,
         agentes_asignados = agentes,
