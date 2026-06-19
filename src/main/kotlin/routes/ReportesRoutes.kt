@@ -167,6 +167,22 @@ fun Application.configureReportesRouting() {
 }
 
 private fun Document.toReporteCasoResponse(): ReporteCasoResponse {
+    val reporte = toReporteCasoEntity()
+    return ReporteCasoResponse(
+        id = reporte.id,
+        caso_id = reporte.caso_id,
+        location = reporte.location,
+        timestamp = reporte.timestamp,
+        prioridad_policial = reporte.prioridad_policial,
+        descripcion = reporte.descripcion,
+        photo_url = reporte.photo_url,
+        metadata_seguridad = reporte.metadata_seguridad,
+        datos_contacto = reporte.datos_contacto,
+        validado = reporte.validado
+    )
+}
+
+private fun Document.toReporteCasoEntity(): ReporteCaso {
     val locDoc = get("location", Document::class.java) ?: Document()
     val coords = locDoc.getList("coordinates", Number::class.java) ?: emptyList()
     val metaDoc = get("metadata_seguridad", Document::class.java) ?: Document()
@@ -178,7 +194,7 @@ private fun Document.toReporteCasoResponse(): ReporteCasoResponse {
         getString("caso_id") ?: ""
     }
 
-    return ReporteCasoResponse(
+    return ReporteCaso(
         id = getObjectId("_id").toHexString(),
         caso_id = casoId,
         location = Ubicacion(

@@ -15,6 +15,20 @@ data class DatosContacto(
 )
 
 @Serializable
+data class ReporteCaso(
+    val id: String = "",
+    val caso_id: String = "",
+    val location: Ubicacion = Ubicacion(),
+    val timestamp: String = "",
+    val prioridad_policial: Boolean = false,
+    val descripcion: String = "",
+    val photo_url: String? = null,
+    val metadata_seguridad: MetadataSeguridad = MetadataSeguridad(),
+    val datos_contacto: DatosContacto = DatosContacto(),
+    val validado: Boolean = false
+)
+
+@Serializable
 data class CrearReporteRequest(
     val caso_id: String,
     val location: Ubicacion,
