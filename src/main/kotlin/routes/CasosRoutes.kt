@@ -127,7 +127,7 @@ fun Application.configureCasosRouting() {
                         return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("Cuerpo inválido"))
                     }
 
-                    val estadosValidos = setOf("investigacion_activa", "resuelto", "cerrado", "suspendido")
+                    val estadosValidos = setOf("investigacion_activa", "cerrado", "suspendido")
                     if (req.estado !in estadosValidos)
                         return@patch call.respond(
                             HttpStatusCode.BadRequest,
