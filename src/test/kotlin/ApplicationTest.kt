@@ -1,5 +1,6 @@
 package com.trobatapp
 
+import com.trobatapp.models.DatosContacto
 import com.trobatapp.models.Desaparecido
 import com.trobatapp.models.Ubicacion
 import io.ktor.client.request.*
@@ -45,6 +46,21 @@ class ApplicationTest {
 
         assertTrue(json.contains("\"ubicacion_original\""))
         assertTrue(json.contains("-58.3816"))
+    }
+
+    @Test
+    fun testDatosContactoPoliciaSerializa() {
+        val datos = DatosContacto(
+            nombre = "Oficial Pérez",
+            telefono = "123456789",
+            email = "policia@test.com"
+        )
+
+        val json = Json.encodeToString(DatosContacto.serializer(), datos)
+
+        assertTrue(json.contains("\"nombre\""))
+        assertTrue(json.contains("\"telefono\""))
+        assertTrue(json.contains("\"email\""))
     }
 
 }

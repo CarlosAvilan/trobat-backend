@@ -23,7 +23,8 @@ data class CrearCasoRequest(
     val oficial_administrador_id: String,
     val agentes_asignados: List<String> = emptyList(),
     val desaparecido: Desaparecido,
-    val representante_externo: RepresentanteExterno
+    val representante_externo: RepresentanteExterno,
+    val datos_contacto_policia: DatosContacto = DatosContacto()
 )
 
 @Serializable
@@ -38,6 +39,7 @@ data class CasoResponse(
     val agentes_asignados: List<String>,
     val desaparecido: Desaparecido,
     val representante_externo: RepresentanteExterno,
+    val datos_contacto_policia: DatosContacto,
     val estado: String,
     val total_reportes: Int,
     val fecha_creacion: String

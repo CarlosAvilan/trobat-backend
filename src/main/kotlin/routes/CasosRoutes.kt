@@ -100,10 +100,15 @@ fun Application.configureCasosRouting() {
                         .append("email", req.representante_externo.email)
                         .append("telefono", req.representante_externo.telefono)
 
+                    val datosContactoPoliciaDoc = Document("nombre", req.datos_contacto_policia.nombre)
+                        .append("email", req.datos_contacto_policia.email)
+                        .append("telefono", req.datos_contacto_policia.telefono)
+
                     val casoDoc = Document("oficial_administrador_id", ObjectId(req.oficial_administrador_id))
                         .append("agentes_asignados", req.agentes_asignados.map { ObjectId(it) })
                         .append("desaparecido", desaparecidoDoc)
                         .append("representante_externo", repDoc)
+                        .append("datos_contacto_policia", datosContactoPoliciaDoc)
                         .append("estado", "investigacion_activa")
                         .append("total_reportes", 0)
                         .append("fecha_creacion", Date.from(Instant.now()))
@@ -185,6 +190,7 @@ fun Application.configureCasosRouting() {
 private fun Document.toCasoResponse(): CasoResponse {
     val desDoc = get("desaparecido", Document::class.java) ?: Document()
     val repDoc = get("representante_externo", Document::class.java) ?: Document()
+    val datosContactoPoliciaDoc = get("datos_contacto_policia", Document::class.java) ?: Document()
     val ubicacionOriginalDoc = desDoc.get("ubicacion_original", Document::class.java)
     val ubicacionOficialDoc = desDoc.get("ultima_ubicacion_oficial", Document::class.java)
 
@@ -223,6 +229,11 @@ private fun Document.toCasoResponse(): CasoResponse {
             nombre = repDoc.getString("nombre") ?: "",
             email = repDoc.getString("email") ?: "",
             telefono = repDoc.getString("telefono") ?: ""
+        ),
+        datos_contacto_policia = DatosContacto(
+            nombre = datosContactoPoliciaDoc.getString("nombre"),
+            email = datosContactoPoliciaDoc.getString("email"),
+            telefono = datosContactoPoliciaDoc.getString("telefono")
         ),
         estado = getString("estado") ?: "investigacion_activa",
         total_reportes = getInteger("total_reportes") ?: 0,
