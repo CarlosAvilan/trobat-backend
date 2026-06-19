@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 data class Desaparecido(
     val nombre: String = "",
     val descripcion: String = "",
+    val ubicacion_original: Ubicacion? = null,
     val ultima_ubicacion_oficial: Ubicacion? = null
 )
 

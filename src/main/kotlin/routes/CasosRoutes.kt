@@ -83,12 +83,18 @@ fun Application.configureCasosRouting() {
 
                     val desaparecidoDoc = Document("nombre", req.desaparecido.nombre)
                         .append("descripcion", req.desaparecido.descripcion)
-                    req.desaparecido.ultima_ubicacion_oficial?.let { ub ->
-                        desaparecidoDoc.append(
-                            "ultima_ubicacion_oficial",
-                            Document("type", ub.type).append("coordinates", ub.coordinates)
-                        )
-                    }
+                        req.desaparecido.ubicacion_original?.let { ub ->
+                            desaparecidoDoc.append(
+                                "ubicacion_original",
+                                Document("type", ub.type).append("coordinates", ub.coordinates)
+                            )
+                        }
+                        req.desaparecido.ultima_ubicacion_oficial?.let { ub ->
+                            desaparecidoDoc.append(
+                                "ultima_ubicacion_oficial",
+                                Document("type", ub.type).append("coordinates", ub.coordinates)
+                            )
+                        }
 
                     val repDoc = Document("nombre", req.representante_externo.nombre)
                         .append("email", req.representante_externo.email)
@@ -179,9 +185,14 @@ fun Application.configureCasosRouting() {
 private fun Document.toCasoResponse(): CasoResponse {
     val desDoc = get("desaparecido", Document::class.java) ?: Document()
     val repDoc = get("representante_externo", Document::class.java) ?: Document()
-    val ubDoc = desDoc.get("ultima_ubicacion_oficial", Document::class.java)
+    val ubicacionOriginalDoc = desDoc.get("ubicacion_original", Document::class.java)
+    val ubicacionOficialDoc = desDoc.get("ultima_ubicacion_oficial", Document::class.java)
 
-    val ubicacion = ubDoc?.let {
+    val ubicacionOriginal = ubicacionOriginalDoc?.let {
+        val coords = it.getList("coordinates", Number::class.java) ?: emptyList()
+        Ubicacion(type = it.getString("type") ?: "Point", coordinates = coords.map { n -> n.toDouble() })
+    }
+    val ubicacionOficial = ubicacionOficialDoc?.let {
         val coords = it.getList("coordinates", Number::class.java) ?: emptyList()
         Ubicacion(type = it.getString("type") ?: "Point", coordinates = coords.map { n -> n.toDouble() })
     }
@@ -205,7 +216,8 @@ private fun Document.toCasoResponse(): CasoResponse {
         desaparecido = Desaparecido(
             nombre = desDoc.getString("nombre") ?: "",
             descripcion = desDoc.getString("descripcion") ?: "",
-            ultima_ubicacion_oficial = ubicacion
+            ubicacion_original = ubicacionOriginal,
+            ultima_ubicacion_oficial = ubicacionOficial
         ),
         representante_externo = RepresentanteExterno(
             nombre = repDoc.getString("nombre") ?: "",

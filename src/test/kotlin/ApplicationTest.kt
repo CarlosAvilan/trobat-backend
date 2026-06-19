@@ -1,10 +1,14 @@
 package com.trobatapp
 
+import com.trobatapp.models.Desaparecido
+import com.trobatapp.models.Ubicacion
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ApplicationTest {
 
@@ -24,6 +28,23 @@ class ApplicationTest {
         client.get("/").apply {
             assertEquals(HttpStatusCode.OK, status)
         }
+    }
+
+    @Test
+    fun testDesaparecidoSerializaUbicacionOriginal() {
+        val desaparecido = Desaparecido(
+            nombre = "Juan",
+            descripcion = "Descripción",
+            ubicacion_original = Ubicacion(
+                type = "Point",
+                coordinates = listOf(-58.3816, -34.6037)
+            )
+        )
+
+        val json = Json.encodeToString(Desaparecido.serializer(), desaparecido)
+
+        assertTrue(json.contains("\"ubicacion_original\""))
+        assertTrue(json.contains("-58.3816"))
     }
 
 }
