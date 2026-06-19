@@ -22,22 +22,24 @@ import java.util.Date
 fun Application.configureReportesRouting() {
     routing {
 
-        // --- PÚBLICO: reportes de un caso específico ---
+        // --- AUTENTICADO: reportes de un caso específico ---
         route("/casos") {
-            get("/{id}/reportes") {
-                val id = call.parameters["id"]
-                    ?: return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID requerido"))
-                if (!ObjectId.isValid(id))
-                    return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID inválido"))
+            authenticate("auth-jwt") {
+                get("/{id}/reportes") {
+                    val id = call.parameters["id"]
+                        ?: return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID requerido"))
+                    if (!ObjectId.isValid(id))
+                        return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID inválido"))
 
-                try {
-                    val lista = reportes
-                        .find(Filters.eq("caso_id", ObjectId(id)))
-                        .toList()
-                        .map { it.toReporteCasoResponse() }
-                    call.respond(lista)
-                } catch (e: Exception) {
-                    call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))
+                    try {
+                        val lista = reportes
+                            .find(Filters.eq("caso_id", ObjectId(id)))
+                            .toList()
+                            .map { it.toReporteCasoResponse() }
+                        call.respond(lista)
+                    } catch (e: Exception) {
+                        call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))
+                    }
                 }
             }
         }
