@@ -1,0 +1,390 @@
+{
+  "info": {
+    "name": "Trobat Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",      "value": "http://localhost:8081" },
+    { "key": "token",         "value": "" },
+    { "key": "caso_id",       "value": "" },
+    { "key": "reporte_id",    "value": "" },
+    { "key": "usuario_id",    "value": "" },
+    { "key": "oficial_id",    "value": "" },
+    { "key": "agente_id",     "value": "" },
+    { "key": "reportante_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /auth/registro",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/registro",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Juan Pérez\",\n  \"email\": \"juan@mail.com\",\n  \"password\": \"secreta123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "POST /auth/login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"juan@mail.com\",\n  \"password\": \"secreta123\",\n  \"fcm_token\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "POST /auth/login/oficial",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login/oficial",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_institucional\": \"oficial@policia.gov\",\n  \"password\": \"secreta123\",\n  \"fcm_token\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "POST /auth/reset-password/oficial",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/reset-password/oficial",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_institucional\": \"oficial@policia.gov\",\n  \"nueva_password\": \"nueva123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "POST /auth/logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcm_token\": \"token_fcm_aqui\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Casos",
+      "item": [
+        {
+          "name": "GET /casos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/casos?page=0&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["casos"],
+              "query": [
+                { "key": "page",  "value": "0" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /casos/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/casos/{{caso_id}}"
+          }
+        },
+        {
+          "name": "POST /casos",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/casos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oficial_administrador_id\": \"{{oficial_id}}\",\n  \"agentes_asignados\": [],\n  \"desaparecido\": {\n    \"nombre\": \"María García\",\n    \"descripcion\": \"Cabello castaño, ojos marrones, 1.60m\",\n    \"edad\": 28,\n    \"imagen\": \"https://bucket.url/foto.jpg\",\n    \"ultima_ubicacion_oficial\": {\n      \"type\": \"Point\",\n      \"coordinates\": [-58.3816, -34.6037]\n    }\n  },\n  \"representante_externo\": {\n    \"nombre\": \"Carlos García\",\n    \"email\": \"carlos@mail.com\",\n    \"telefono\": \"1122334455\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "PATCH /casos/:id/estado",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/casos/{{caso_id}}/estado",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"resuelto\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "POST /casos/:id/agentes/:agenteId",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/casos/{{caso_id}}/agentes/{{agente_id}}"
+          }
+        },
+        {
+          "name": "DELETE /casos/:id/agentes/:agenteId",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/casos/{{caso_id}}/agentes/{{agente_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reportes",
+      "item": [
+        {
+          "name": "GET /casos/:id/reportes",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/casos/{{caso_id}}/reportes"
+          }
+        },
+        {
+          "name": "POST /reportes",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/reportes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"caso_id\": \"{{caso_id}}\",\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [-58.3816, -34.6037]\n  },\n  \"descripcion\": \"Vi a una persona similar cerca de la plaza\",\n  \"photo_url\": \"https://bucket.url/foto.jpg\",\n  \"prioridad_policial\": false,\n  \"metadata_seguridad\": { \"anonimo\": true },\n  \"datos_contacto\": {\n    \"nombre\": null,\n    \"telefono\": null,\n    \"email\": null\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "GET /reportes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/reportes?page=0&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["reportes"],
+              "query": [
+                { "key": "page",    "value": "0" },
+                { "key": "limit",   "value": "20" },
+                { "key": "caso_id", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /reportes/:id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/reportes/{{reporte_id}}"
+          }
+        },
+        {
+          "name": "PATCH /reportes/:id/validar",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/reportes/{{reporte_id}}/validar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"validado\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Usuarios",
+      "item": [
+        {
+          "name": "GET /usuarios/:id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/usuarios/{{usuario_id}}"
+          }
+        },
+        {
+          "name": "POST /usuarios/:id/fcm-token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/usuarios/{{usuario_id}}/fcm-token",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcm_token\": \"token_fcm_aqui\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Oficiales",
+      "item": [
+        {
+          "name": "GET /oficiales",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/oficiales"
+          }
+        },
+        {
+          "name": "GET /oficiales/:id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/oficiales/{{oficial_id}}"
+          }
+        },
+        {
+          "name": "POST /oficiales/:id/fcm-token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/oficiales/{{oficial_id}}/fcm-token",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcm_token\": \"token_fcm_aqui\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Usuarios Reportantes",
+      "item": [
+        {
+          "name": "POST /usuarios-reportantes/registro",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/usuarios-reportantes/registro",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mail\": \"reportante@mail.com\",\n  \"contrasenia\": \"secreta123\",\n  \"informacion_personal\": {\n    \"dni\": \"12345678\",\n    \"nombre_completo\": \"Ana López\",\n    \"telefono\": \"1122334455\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "POST /usuarios-reportantes/login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/usuarios-reportantes/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mail\": \"reportante@mail.com\",\n  \"contrasenia\": \"secreta123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "GET /usuarios-reportantes/perfil",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/usuarios-reportantes/perfil"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Legacy",
+      "item": [
+        {
+          "name": "GET / - Health check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/"
+          }
+        },
+        {
+          "name": "GET /ver-reportes",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/ver-reportes"
+          }
+        },
+        {
+          "name": "GET /reportes-cercanos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/reportes-cercanos?lat=-34.6037&lng=-58.3816&radio=1000",
+              "host": ["{{base_url}}"],
+              "path": ["reportes-cercanos"],
+              "query": [
+                { "key": "lat",   "value": "-34.6037" },
+                { "key": "lng",   "value": "-58.3816" },
+                { "key": "radio", "value": "1000" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /crear-reporte (multipart)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/crear-reporte",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "id_solicitud", "value": "sol-001",                                       "type": "text" },
+                { "key": "descripcion",  "value": "Vi a una persona similar cerca de la plaza",    "type": "text" },
+                { "key": "estado",       "value": "activo",                                        "type": "text" },
+                { "key": "latitud",      "value": "-34.6037",                                      "type": "text" },
+                { "key": "longitud",     "value": "-58.3816",                                      "type": "text" },
+                { "key": "foto",         "src": "",                                                "type": "file" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
