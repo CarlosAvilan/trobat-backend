@@ -35,6 +35,7 @@ dependencies {
     implementation("org.mongodb:mongodb-driver-kotlin-coroutine:5.0.0")
     implementation("org.mindrot:jbcrypt:0.4")
     implementation("com.google.firebase:firebase-admin:9.3.0")
+    implementation("com.drewnoakes:metadata-extractor:2.19.0")
 
     testImplementation("io.ktor:ktor-server-tests-jvm:2.3.10")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:1.9.22")

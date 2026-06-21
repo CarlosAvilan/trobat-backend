@@ -6,6 +6,8 @@ import com.trobatapp.casos
 import com.trobatapp.models.*
 import com.trobatapp.reportes
 import com.trobatapp.service.FirebaseStorageService
+import com.trobatapp.utils.ExifUtil
+import com.trobatapp.utils.GeoUtils
 import com.trobatapp.utils.GeocodingUtil
 import com.trobatapp.utils.verificarRol
 import io.ktor.http.*
@@ -103,6 +105,18 @@ fun Application.configureReportesRouting() {
                     }
                 }
 
+                // Validación cruzada EXIF vs GPS declarado
+                val exifGps = fotoBytes?.let { ExifUtil.extractGps(it) }
+                val suspicious = if (exifGps != null) {
+                    val distKm = GeoUtils.haversineKm(
+                        exifGps.first, exifGps.second,
+                        req.location.latitud, req.location.longitud
+                    )
+                    distKm > 0.5
+                } else {
+                    false
+                }
+
                 val locationDoc = Document("type", req.location.type)
                     .append("coordinates", req.location.coordinates)
                 val securityDoc = Document("anonymous", req.security_metadata.anonymous)
@@ -125,6 +139,12 @@ fun Application.configureReportesRouting() {
                     .append("security_metadata", securityDoc)
                     .append("contact_info", contactDoc)
                     .append("validated", false)
+                    .append("suspicious", suspicious)
+                    .let { doc ->
+                        if (exifGps != null) doc.append(
+                            "exif_location", Document("lat", exifGps.first).append("lng", exifGps.second)
+                        ) else doc
+                    }
 
                 reportes.insertOne(reporteDoc)
                 casos.updateOne(
@@ -267,6 +287,7 @@ private fun Document.toReporteCasoResponse(): ReporteCasoResponse {
             email = contactDoc.getString("email")
         ),
         validated = validated,
-        priority = priority
+        priority = priority,
+        suspicious = getBoolean("suspicious")
     )
 }

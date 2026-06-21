@@ -43,7 +43,8 @@ data class ReporteCasoResponse(
     val security_metadata: SecurityMetadata,
     val contact_info: ContactInfo,
     val validated: Boolean,
-    val priority: String? = null
+    val priority: String? = null,
+    val suspicious: Boolean? = null
 )
 
 @Serializable
