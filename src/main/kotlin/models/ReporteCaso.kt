@@ -27,7 +27,8 @@ data class CrearReporteRequest(
 
 @Serializable
 data class ValidarReporteRequest(
-    val validated: Boolean
+    val validated: Boolean,
+    val priority: String? = null
 )
 
 @Serializable
@@ -37,12 +38,12 @@ data class ReporteCasoResponse(
     val location: Ubicacion,
     val location_label: String? = null,
     val timestamp: String,
-    val police_priority: Boolean,
     val description: String,
     val photo_url: String?,
     val security_metadata: SecurityMetadata,
     val contact_info: ContactInfo,
-    val validated: Boolean
+    val validated: Boolean,
+    val priority: String? = null
 )
 
 @Serializable

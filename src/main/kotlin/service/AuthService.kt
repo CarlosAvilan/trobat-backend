@@ -90,7 +90,7 @@ class AuthServiceImpl(
     }
 
     override suspend fun resetPasswordOficial(emailInstitucional: String, nuevaPassword: String): Boolean {
-        val existe = oficiales.find(Filters.eq("email_institucional", emailInstitucional)).firstOrNull()
+        oficiales.find(Filters.eq("email_institucional", emailInstitucional)).firstOrNull()
             ?: return false
 
         val nuevoHash = BCrypt.hashpw(nuevaPassword, BCrypt.gensalt())

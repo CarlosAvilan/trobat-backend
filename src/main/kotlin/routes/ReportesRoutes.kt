@@ -39,7 +39,10 @@ fun Application.configureReportesRouting() {
 
                     try {
                         val lista = reportes
-                            .find(Filters.eq("case_id", ObjectId(id)))
+                            .find(Filters.or(
+                                Filters.eq("case_id", ObjectId(id)),
+                                Filters.eq("caso_id", ObjectId(id))
+                            ))
                             .toList()
                             .map { it.toReporteCasoResponse() }
                         call.respond(lista)
@@ -141,7 +144,10 @@ fun Application.configureReportesRouting() {
                     val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
                     val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 20
                     val filtro = if (caseId != null && ObjectId.isValid(caseId))
-                        Filters.eq("case_id", ObjectId(caseId))
+                        Filters.or(
+                            Filters.eq("case_id", ObjectId(caseId)),
+                            Filters.eq("caso_id", ObjectId(caseId))
+                        )
                     else
                         Document()
 
@@ -179,7 +185,7 @@ fun Application.configureReportesRouting() {
                     }
                 }
 
-                // --- SOLO OFICIAL: validar reporte ---
+                // --- SOLO OFICIAL: validar y asignar priority ---
                 patch("/{id}/validar") {
                     if (!call.verificarRol("oficial")) return@patch
 
@@ -194,16 +200,19 @@ fun Application.configureReportesRouting() {
                         return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("Cuerpo inválido"))
                     }
 
-                    val result = reportes.updateOne(
-                        Filters.eq("_id", ObjectId(id)),
-                        Updates.set("validated", req.validated)
-                    )
+                    val validPriorities = setOf("high", "medium", "discarded", null)
+                    if (req.priority !in validPriorities)
+                        return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("Prioridad inválida"))
+
+                    val update = if (req.priority != null)
+                        Updates.combine(Updates.set("validated", req.validated), Updates.set("priority", req.priority))
+                    else
+                        Updates.combine(Updates.set("validated", req.validated), Updates.unset("priority"))
+
+                    val result = reportes.updateOne(Filters.eq("_id", ObjectId(id)), update)
 
                     if (result.matchedCount == 0L) call.respond(HttpStatusCode.NotFound, MensajeResponse("Reporte no encontrado"))
-                    else {
-                        val estado = if (req.validated) "validado" else "invalidado"
-                        call.respond(MensajeResponse("Reporte $estado exitosamente"))
-                    }
+                    else call.respond(MensajeResponse("Reporte ${if (req.validated) "validado" else "revertido a pendiente"} exitosamente"))
                 }
             }
         }
@@ -211,16 +220,30 @@ fun Application.configureReportesRouting() {
 }
 
 private fun Document.toReporteCasoResponse(): ReporteCasoResponse {
-    val locDoc = get("location", Document::class.java) ?: Document()
+    val locDoc = get("location", Document::class.java)
+        ?: get("ubicacion", Document::class.java)
+        ?: Document()
     val coords = locDoc.getList("coordinates", Number::class.java) ?: emptyList()
-    val securityDoc = get("security_metadata", Document::class.java) ?: Document()
-    val contactDoc = get("contact_info", Document::class.java) ?: Document()
+    val securityDoc = get("security_metadata", Document::class.java)
+        ?: get("metadata_seguridad", Document::class.java)
+        ?: Document()
+    val contactDoc = get("contact_info", Document::class.java)
+        ?: get("datos_contacto", Document::class.java)
+        ?: Document()
 
     val caseId = try {
         getObjectId("case_id").toHexString()
     } catch (e: Exception) {
-        getString("case_id") ?: ""
+        try {
+            getObjectId("caso_id").toHexString()
+        } catch (e2: Exception) {
+            getString("case_id") ?: getString("caso_id") ?: ""
+        }
     }
+
+    val validated = getBoolean("validated") ?: getBoolean("validado") ?: false
+    val priority = getString("priority")
+        ?: if (getBoolean("police_priority") == true || getBoolean("prioridad_policial") == true) "high" else null
 
     return ReporteCasoResponse(
         id = getObjectId("_id").toHexString(),
@@ -233,15 +256,17 @@ private fun Document.toReporteCasoResponse(): ReporteCasoResponse {
         timestamp = getDate("timestamp")?.toInstant()?.toString()
             ?: get("timestamp")?.toString()
             ?: "",
-        police_priority = getBoolean("police_priority") ?: false,
-        description = getString("description") ?: "",
-        photo_url = getString("photo_url"),
-        security_metadata = SecurityMetadata(anonymous = securityDoc.getBoolean("anonymous") ?: true),
+        description = getString("description") ?: getString("descripcion") ?: "",
+        photo_url = getString("photo_url") ?: getString("foto_url"),
+        security_metadata = SecurityMetadata(
+            anonymous = securityDoc.getBoolean("anonymous") ?: securityDoc.getBoolean("anonimo") ?: true
+        ),
         contact_info = ContactInfo(
-            name = contactDoc.getString("name"),
-            phone = contactDoc.getString("phone"),
+            name = contactDoc.getString("name") ?: contactDoc.getString("nombre"),
+            phone = contactDoc.getString("phone") ?: contactDoc.getString("telefono"),
             email = contactDoc.getString("email")
         ),
-        validated = getBoolean("validated") ?: false
+        validated = validated,
+        priority = priority
     )
 }
