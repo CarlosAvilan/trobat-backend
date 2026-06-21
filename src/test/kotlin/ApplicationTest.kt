@@ -1,6 +1,6 @@
 package com.trobatapp
 
-import com.trobatapp.models.DatosContacto
+import com.trobatapp.models.ContactInfo
 import com.trobatapp.models.Desaparecido
 import com.trobatapp.models.Ubicacion
 import io.ktor.client.request.*
@@ -32,11 +32,13 @@ class ApplicationTest {
     }
 
     @Test
-    fun testDesaparecidoSerializaUbicacionOriginal() {
+    fun testDesaparecidoSerializaUbicacion() {
         val desaparecido = Desaparecido(
-            nombre = "Juan",
-            descripcion = "Descripción",
-            ubicacion_original = Ubicacion(
+            name = "Juan",
+            description = "Descripción",
+            age = 30,
+            image = "",
+            last_known_location = Ubicacion(
                 type = "Point",
                 coordinates = listOf(-58.3816, -34.6037)
             )
@@ -44,22 +46,22 @@ class ApplicationTest {
 
         val json = Json.encodeToString(Desaparecido.serializer(), desaparecido)
 
-        assertTrue(json.contains("\"ubicacion_original\""))
+        assertTrue(json.contains("\"last_known_location\""))
         assertTrue(json.contains("-58.3816"))
     }
 
     @Test
-    fun testDatosContactoPoliciaSerializa() {
-        val datos = DatosContacto(
-            nombre = "Oficial Pérez",
-            telefono = "123456789",
-            email = "policia@test.com"
+    fun testContactInfoSerializa() {
+        val datos = ContactInfo(
+            name = "Contacto Test",
+            phone = "123456789",
+            email = "contacto@test.com"
         )
 
-        val json = Json.encodeToString(DatosContacto.serializer(), datos)
+        val json = Json.encodeToString(ContactInfo.serializer(), datos)
 
-        assertTrue(json.contains("\"nombre\""))
-        assertTrue(json.contains("\"telefono\""))
+        assertTrue(json.contains("\"name\""))
+        assertTrue(json.contains("\"phone\""))
         assertTrue(json.contains("\"email\""))
     }
 

@@ -3,59 +3,46 @@ package com.trobatapp.models
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class MetadataSeguridad(
-    val anonimo: Boolean = true
+data class SecurityMetadata(
+    val anonymous: Boolean = true
 )
 
 @Serializable
-data class DatosContacto(
-    val nombre: String? = null,
-    val telefono: String? = null,
+data class ContactInfo(
+    val name: String? = null,
+    val phone: String? = null,
     val email: String? = null
 )
 
 @Serializable
-data class ReporteCaso(
-    val id: String = "",
-    val caso_id: String = "",
-    val location: Ubicacion = Ubicacion(),
-    val timestamp: String = "",
-    val prioridad_policial: Boolean = false,
-    val descripcion: String = "",
-    val photo_url: String? = null,
-    val metadata_seguridad: MetadataSeguridad = MetadataSeguridad(),
-    val datos_contacto: DatosContacto = DatosContacto(),
-    val validado: Boolean = false
-)
-
-@Serializable
 data class CrearReporteRequest(
-    val caso_id: String,
+    val case_id: String,
     val location: Ubicacion,
-    val descripcion: String,
+    val description: String,
     val photo_url: String? = null,
-    val prioridad_policial: Boolean = false,
-    val metadata_seguridad: MetadataSeguridad = MetadataSeguridad(),
-    val datos_contacto: DatosContacto = DatosContacto()
+    val police_priority: Boolean = false,
+    val security_metadata: SecurityMetadata = SecurityMetadata(),
+    val contact_info: ContactInfo = ContactInfo()
 )
 
 @Serializable
 data class ValidarReporteRequest(
-    val validado: Boolean
+    val validated: Boolean
 )
 
 @Serializable
 data class ReporteCasoResponse(
     val id: String,
-    val caso_id: String,
+    val case_id: String,
     val location: Ubicacion,
+    val location_label: String? = null,
     val timestamp: String,
-    val prioridad_policial: Boolean,
-    val descripcion: String,
+    val police_priority: Boolean,
+    val description: String,
     val photo_url: String?,
-    val metadata_seguridad: MetadataSeguridad,
-    val datos_contacto: DatosContacto,
-    val validado: Boolean
+    val security_metadata: SecurityMetadata,
+    val contact_info: ContactInfo,
+    val validated: Boolean
 )
 
 @Serializable
