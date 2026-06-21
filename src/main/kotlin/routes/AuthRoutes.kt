@@ -27,7 +27,7 @@ fun Application.configureAuthRouting(authService: IAuthService) {
 
                 val newId = authService.registrarUsuario(req.name, req.email, req.password)
                 if (newId != null) {
-                    call.respond(HttpStatusCode.Created, CrearCasoResponse(id = newId, mensaje = "Usuario registrado exitosamente"))
+                    call.respond(HttpStatusCode.Created, CrearCasoResponse(id = newId, message = "Usuario registrado exitosamente"))
                 } else {
                     call.respond(HttpStatusCode.Conflict, MensajeResponse("El email ya está registrado"))
                 }
