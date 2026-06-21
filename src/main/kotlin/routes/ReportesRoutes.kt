@@ -97,7 +97,7 @@ fun Application.configureReportesRouting() {
 
                 val photoUrl: String? = fotoBytes?.takeIf { it.isNotEmpty() }?.let { bytes ->
                     try {
-                        withContext(Dispatchers.IO) { FirebaseStorageService.uploadImage(bytes) }
+                        withContext(Dispatchers.IO) { FirebaseStorageService.uploadImage(bytes, folder = "reportes") }
                     } catch (e: Exception) {
                         null
                     }
