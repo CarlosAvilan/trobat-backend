@@ -47,6 +47,12 @@ data class ActualizarEstadoRequest(
 )
 
 @Serializable
+data class EditarCasoRequest(
+    val missing_person: Desaparecido,
+    val external_contact: RepresentanteExterno
+)
+
+@Serializable
 data class CasoResponse(
     val id: String,
     val admin_officer_id: String,

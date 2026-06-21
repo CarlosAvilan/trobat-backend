@@ -4,16 +4,21 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
 import com.trobatapp.casos
 import com.trobatapp.models.*
+import com.trobatapp.service.FirebaseStorageService
 import com.trobatapp.utils.GeocodingUtil
 import com.trobatapp.utils.verificarRol
 import io.ktor.http.*
+import io.ktor.http.content.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import org.bson.Document
 import org.bson.types.ObjectId
 import java.time.Instant
@@ -114,10 +119,35 @@ fun Application.configureCasosRouting() {
                 post {
                     if (!call.verificarRol("oficial")) return@post
 
-                    val req = try {
-                        call.receive<CrearCasoRequest>()
+                    var fotoBytes: ByteArray? = null
+                    var datosJson: String? = null
+
+                    try {
+                        val multipart = call.receiveMultipart()
+                        multipart.forEachPart { part ->
+                            when (part) {
+                                is PartData.FileItem -> {
+                                    if (part.name == "foto") {
+                                        fotoBytes = withContext(Dispatchers.IO) { part.streamProvider().readBytes() }
+                                    }
+                                }
+                                is PartData.FormItem -> {
+                                    if (part.name == "datos") datosJson = part.value
+                                }
+                                else -> {}
+                            }
+                            part.dispose()
+                        }
                     } catch (e: Exception) {
-                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Cuerpo inválido: ${e.localizedMessage}"))
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Multipart inválido: ${e.localizedMessage}"))
+                    }
+
+                    val req = try {
+                        Json.decodeFromString<CrearCasoRequest>(
+                            datosJson ?: return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Campo 'datos' requerido"))
+                        )
+                    } catch (e: Exception) {
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("datos inválido: ${e.localizedMessage}"))
                     }
 
                     if (!ObjectId.isValid(req.admin_officer_id))
@@ -127,6 +157,14 @@ fun Application.configureCasosRouting() {
                     if (agentesInvalidos.isNotEmpty())
                         return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("IDs de agentes inválidos: $agentesInvalidos"))
 
+                    val photoUrl: String? = fotoBytes?.takeIf { it.isNotEmpty() }?.let { bytes ->
+                        try {
+                            withContext(Dispatchers.IO) { FirebaseStorageService.uploadImage(bytes) }
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+
                     val locationLabel = req.missing_person.last_known_location?.let { ub ->
                         GeocodingUtil.reverseGeocode(lat = ub.latitud, lon = ub.longitud)
                     }
@@ -134,7 +172,7 @@ fun Application.configureCasosRouting() {
                     val missingPersonDoc = Document("name", req.missing_person.name)
                         .append("description", req.missing_person.description)
                         .append("age", req.missing_person.age)
-                        .append("image", req.missing_person.image)
+                        .append("image", photoUrl)
                         .append("last_seen_date", req.missing_person.last_seen_date)
                         .append("location_description", req.missing_person.location_description)
                         .append("location_label", locationLabel)
@@ -160,6 +198,54 @@ fun Application.configureCasosRouting() {
                     casos.insertOne(casoDoc)
                     val newId = casoDoc.getObjectId("_id").toHexString()
                     call.respond(HttpStatusCode.Created, CrearCasoResponse(id = newId, message = "Caso creado exitosamente"))
+                }
+
+                patch("/{id}") {
+                    if (!call.verificarRol("oficial")) return@patch
+
+                    val id = call.parameters["id"]
+                        ?: return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID requerido"))
+                    if (!ObjectId.isValid(id))
+                        return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID inválido"))
+
+                    val req = try {
+                        call.receive<EditarCasoRequest>()
+                    } catch (e: Exception) {
+                        return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("Cuerpo inválido: ${e.localizedMessage}"))
+                    }
+
+                    val locationLabel = req.missing_person.last_known_location?.let { ub ->
+                        GeocodingUtil.reverseGeocode(lat = ub.latitud, lon = ub.longitud)
+                    }
+
+                    val missingPersonDoc = Document("name", req.missing_person.name)
+                        .append("description", req.missing_person.description)
+                        .append("age", req.missing_person.age)
+                        .append("image", req.missing_person.image)
+                        .append("last_seen_date", req.missing_person.last_seen_date)
+                        .append("location_description", req.missing_person.location_description)
+                        .append("location_label", locationLabel)
+                    req.missing_person.last_known_location?.let { ub ->
+                        missingPersonDoc.append(
+                            "last_known_location",
+                            Document("type", ub.type).append("coordinates", ub.coordinates)
+                        )
+                    }
+
+                    val contactDoc = Document("name", req.external_contact.name)
+                        .append("email", req.external_contact.email)
+                        .append("phone", req.external_contact.phone)
+
+                    val result = casos.updateOne(
+                        Filters.eq("_id", ObjectId(id)),
+                        Updates.combine(
+                            Updates.set("missing_person", missingPersonDoc),
+                            Updates.set("external_contact", contactDoc)
+                        )
+                    )
+
+                    if (result.matchedCount == 0L) call.respond(HttpStatusCode.NotFound, MensajeResponse("Caso no encontrado"))
+                    else call.respond(MensajeResponse("Caso actualizado exitosamente"))
                 }
 
                 patch("/{id}/estado") {
@@ -232,9 +318,15 @@ fun Application.configureCasosRouting() {
 }
 
 private fun Document.toCasoResponse(): CasoResponse {
-    val missingDoc = get("missing_person", Document::class.java) ?: Document()
-    val contactDoc = get("external_contact", Document::class.java) ?: Document()
+    // Compatibilidad con documentos antiguos (campo en español) y nuevos (en inglés)
+    val missingDoc = get("missing_person", Document::class.java)
+        ?: get("desaparecido", Document::class.java)
+        ?: Document()
+    val contactDoc = get("external_contact", Document::class.java)
+        ?: get("representante_externo", Document::class.java)
+        ?: Document()
     val locDoc = missingDoc.get("last_known_location", Document::class.java)
+        ?: missingDoc.get("ultima_ubicacion", Document::class.java)
 
     val location = locDoc?.let {
         val coords = it.getList("coordinates", Number::class.java) ?: emptyList()
@@ -242,15 +334,31 @@ private fun Document.toCasoResponse(): CasoResponse {
     }
 
     val assignedAgents = try {
-        getList("assigned_agents", ObjectId::class.java)?.map { it.toHexString() } ?: emptyList()
+        getList("assigned_agents", ObjectId::class.java)?.map { it.toHexString() }
+            ?: getList("agentes_asignados", ObjectId::class.java)?.map { it.toHexString() }
+            ?: emptyList()
     } catch (e: Exception) {
-        getList("assigned_agents", String::class.java) ?: emptyList()
+        getList("assigned_agents", String::class.java)
+            ?: getList("agentes_asignados", String::class.java)
+            ?: emptyList()
     }
 
     val adminOfficerId = try {
         getObjectId("admin_officer_id").toHexString()
     } catch (e: Exception) {
-        getString("admin_officer_id") ?: ""
+        try {
+            getObjectId("oficial_administrador_id").toHexString()
+        } catch (e2: Exception) {
+            getString("admin_officer_id") ?: getString("oficial_administrador_id") ?: ""
+        }
+    }
+
+    val status = when (val raw = getString("status") ?: getString("estado")) {
+        "active_investigation", "resolved", "closed" -> raw
+        "investigacion_activa", "suspendido" -> "active_investigation"
+        "resuelto" -> "resolved"
+        "cerrado" -> "closed"
+        else -> "active_investigation"
     }
 
     return CasoResponse(
@@ -258,24 +366,26 @@ private fun Document.toCasoResponse(): CasoResponse {
         admin_officer_id = adminOfficerId,
         assigned_agents = assignedAgents,
         missing_person = Desaparecido(
-            name = missingDoc.getString("name") ?: "",
-            description = missingDoc.getString("description") ?: "",
-            age = missingDoc.getInteger("age") ?: 0,
-            image = missingDoc.getString("image") ?: "",
-            last_seen_date = missingDoc.getString("last_seen_date") ?: "",
-            location_description = missingDoc.getString("location_description") ?: "",
+            name = missingDoc.getString("name") ?: missingDoc.getString("nombre") ?: "",
+            description = missingDoc.getString("description") ?: missingDoc.getString("descripcion") ?: "",
+            age = missingDoc.getInteger("age") ?: missingDoc.getInteger("edad") ?: 0,
+            image = missingDoc.getString("image") ?: missingDoc.getString("foto") ?: "",
+            last_seen_date = missingDoc.getString("last_seen_date") ?: missingDoc.getString("fecha_ultima_vez_visto") ?: "",
+            location_description = missingDoc.getString("location_description") ?: missingDoc.getString("descripcion_ubicacion") ?: "",
             last_known_location = location,
             location_label = missingDoc.getString("location_label")
         ),
         external_contact = RepresentanteExterno(
-            name = contactDoc.getString("name") ?: "",
+            name = contactDoc.getString("name") ?: contactDoc.getString("nombre") ?: "",
             email = contactDoc.getString("email") ?: "",
-            phone = contactDoc.getString("phone") ?: ""
+            phone = contactDoc.getString("phone") ?: contactDoc.getString("telefono") ?: ""
         ),
-        status = getString("status") ?: "active_investigation",
-        total_reports = getInteger("total_reports") ?: 0,
+        status = status,
+        total_reports = getInteger("total_reports") ?: getInteger("total_reportes") ?: 0,
         created_at = getDate("created_at")?.toInstant()?.toString()
+            ?: getDate("fecha_creacion")?.toInstant()?.toString()
             ?: get("created_at")?.toString()
+            ?: get("fecha_creacion")?.toString()
             ?: ""
     )
 }

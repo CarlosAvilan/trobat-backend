@@ -36,17 +36,27 @@ fun main() {
 
 fun initFirebase() {
     if (FirebaseApp.getApps().isNotEmpty()) return
-    val serviceAccount = object {}.javaClass.classLoader
-        .getResourceAsStream("firebase-service-account.json")
-        ?: error("firebase-service-account.json no encontrado en resources")
-    val options = FirebaseOptions.builder()
-        .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-        .setStorageBucket("trobat-40cea.firebasestorage.app")
-        .build()
-    FirebaseApp.initializeApp(options)
+    try {
+        // Prioridad: variable de entorno → archivo en resources
+        val stream = System.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+            ?.byteInputStream()
+            ?: object {}.javaClass.classLoader
+                .getResourceAsStream("firebase-service-account.json")
+            ?: return // sin credenciales: uploads desactivados
+
+        val bucket = System.getenv("FIREBASE_STORAGE_BUCKET") ?: "trobat-40cea.firebasestorage.app"
+        val options = FirebaseOptions.builder()
+            .setCredentials(GoogleCredentials.fromStream(stream))
+            .setStorageBucket(bucket)
+            .build()
+        FirebaseApp.initializeApp(options)
+    } catch (e: Exception) {
+        // Firebase no disponible; las fotos no se subirán
+    }
 }
 
 fun Application.module() {
+    initFirebase()
     val authService = AuthServiceImpl(usuarios, oficiales)
 
     configureHTTP()
