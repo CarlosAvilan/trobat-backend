@@ -16,6 +16,7 @@ import com.trobatapp.routes.configureReportesRouting
 import com.trobatapp.routes.configureRouting
 import com.trobatapp.routes.configureUsuariosRouting
 import com.trobatapp.routes.configureUsuariosReportantesRouting
+import com.trobatapp.routes.configureNotificacionesRouting
 import org.bson.Document
 
 val uri = System.getenv("MONGODB_URI") ?: error("MONGODB_URI no configurado")
@@ -27,6 +28,7 @@ val reportes = database.getCollection<Document>("reportes")
 val usuarios = database.getCollection<Document>("usuarios")
 val oficiales = database.getCollection<Document>("usuarios")
 val usuariosReportantes = database.getCollection<Document>("Usuario_reportante")
+val notificaciones = database.getCollection<Document>("notificaciones")
 
 fun main() {
     initFirebase()
@@ -68,6 +70,7 @@ fun Application.module() {
     configureAuthRouting(authService)
     configureUsuariosRouting()
     configureUsuariosReportantesRouting()
+    configureNotificacionesRouting()
 
     environment.monitor.subscribe(ApplicationStarted) {
         kotlinx.coroutines.runBlocking {
