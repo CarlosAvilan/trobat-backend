@@ -30,6 +30,37 @@ fun Application.configureCasosRouting() {
 
             // --- PÚBLICO ---
 
+            get("/buscar") {
+                val query = call.request.queryParameters["q"]?.trim()
+                    ?: return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("Parámetro q requerido"))
+                if (query.length < 2)
+                    return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("Mínimo 2 caracteres"))
+                val page  = call.request.queryParameters["page"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 20
+
+                try {
+                    val filtro = Filters.or(
+                        Filters.regex("missing_person.name", query, "i"),
+                        Filters.regex("desaparecido.nombre", query, "i")
+                    )
+                    val total = casos.countDocuments(filtro)
+                    val lista = casos.find(filtro)
+                        .skip(page * limit)
+                        .limit(limit)
+                        .toList()
+                        .map { it.toCasoResponse() }
+                    call.respond(CasosPaginados(
+                        data = lista,
+                        total = total,
+                        page = page,
+                        limit = limit,
+                        hasMore = (page * limit + lista.size).toLong() < total
+                    ))
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))
+                }
+            }
+
             get("/cercanos") {
                 val lat = call.request.queryParameters["lat"]?.toDoubleOrNull()
                     ?: return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("lat requerido"))
