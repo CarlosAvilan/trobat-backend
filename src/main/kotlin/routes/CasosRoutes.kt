@@ -147,6 +147,69 @@ fun Application.configureCasosRouting() {
 
             authenticate("auth-jwt") {
 
+                post("/dataset") {
+                    if (!call.verificarRol("oficial")) return@post
+
+                    val req = try {
+                        call.receive<CargarDatasetRequest>()
+                    } catch (e: Exception) {
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Cuerpo inválido: ${e.localizedMessage}"))
+                    }
+
+                    if (req.casos.isEmpty())
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Dataset vacío"))
+                    if (req.casos.size > 500)
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Máximo 500 casos por lote"))
+
+                    val validStatuses = setOf("active_investigation", "resolved", "closed")
+
+                    val docs = req.casos.map { c ->
+                        val status = c.status.takeIf { it in validStatuses } ?: "active_investigation"
+
+                        val photoUrl: String? = c.image_url?.let { url ->
+                            try {
+                                val (bytes, contentType) = withContext(Dispatchers.IO) { downloadUrl(url) }
+                                    ?: return@let null
+                                withContext(Dispatchers.IO) {
+                                    FirebaseStorageService.uploadImage(bytes, contentType = contentType, folder = "dataset")
+                                }
+                            } catch (e: Exception) { null }
+                        }
+
+                        val missingPersonDoc = Document("name", c.name)
+                            .append("description", c.description)
+                            .append("age", c.age)
+                            .append("image", photoUrl)
+                            .append("last_seen_date", c.last_seen_date)
+                            .append("location_description", c.location_description)
+                            .append("location_label", c.location_label)
+                        c.last_known_location?.let { ub ->
+                            missingPersonDoc.append(
+                                "last_known_location",
+                                Document("type", ub.type).append("coordinates", ub.coordinates)
+                            )
+                        }
+
+                        Document()
+                            .append("missing_person", missingPersonDoc)
+                            .append("external_contact", Document("name", "").append("email", "").append("phone", ""))
+                            .append("assigned_agents", emptyList<ObjectId>())
+                            .append("status", status)
+                            .append("total_reports", 0)
+                            .append("created_at", Date.from(Instant.now()))
+                    }
+
+                    try {
+                        casos.insertMany(docs)
+                        call.respond(HttpStatusCode.Created, CargarDatasetResponse(
+                            inserted = docs.size,
+                            message = "${docs.size} caso(s) insertados exitosamente"
+                        ))
+                    } catch (e: Exception) {
+                        call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))
+                    }
+                }
+
                 post {
                     if (!call.verificarRol("oficial")) return@post
 
@@ -419,4 +482,18 @@ private fun Document.toCasoResponse(): CasoResponse {
             ?: get("fecha_creacion")?.toString()
             ?: ""
     )
+}
+
+private fun downloadUrl(url: String): Pair<ByteArray, String>? = try {
+    val connection = java.net.URI(url).toURL().openConnection() as java.net.HttpURLConnection
+    connection.connectTimeout = 8000
+    connection.readTimeout = 8000
+    connection.setRequestProperty("User-Agent", "TrobatApp/1.0")
+    val contentType = connection.contentType?.substringBefore(";")?.trim()
+        ?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
+    val bytes = connection.inputStream.use { it.readBytes() }
+    connection.disconnect()
+    if (bytes.isNotEmpty()) Pair(bytes, contentType) else null
+} catch (e: Exception) {
+    null
 }

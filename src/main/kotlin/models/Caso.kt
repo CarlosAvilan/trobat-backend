@@ -94,3 +94,27 @@ data class CasosCercanosPaginados(
     val radius_km: Double,
     val hasMore: Boolean
 )
+
+@Serializable
+data class DatasetCasoItem(
+    val name: String,
+    val age: Int = 0,
+    val description: String = "",
+    val image_url: String? = null,
+    val last_seen_date: String = "",
+    val location_description: String = "",
+    val location_label: String? = null,
+    val last_known_location: Ubicacion? = null,
+    val status: String = "active_investigation"
+)
+
+@Serializable
+data class CargarDatasetRequest(
+    val casos: List<DatasetCasoItem>
+)
+
+@Serializable
+data class CargarDatasetResponse(
+    val inserted: Int,
+    val message: String
+)
