@@ -27,7 +27,7 @@ val casos = database.getCollection<Document>("casos")
 val reportes = database.getCollection<Document>("reportes")
 val usuarios = database.getCollection<Document>("usuarios")
 val oficiales = database.getCollection<Document>("usuarios")
-val usuariosReportantes = database.getCollection<Document>("Usuario_reportante")
+val usuariosReportantes = database.getCollection<Document>("usuariosReportantes")
 val notificaciones = database.getCollection<Document>("notificaciones")
 
 fun main() {
