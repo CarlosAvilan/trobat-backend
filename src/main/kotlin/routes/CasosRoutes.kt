@@ -180,7 +180,7 @@ fun Application.configureCasosRouting() {
                             .append("description", c.description)
                             .append("age", c.age)
                             .append("image", photoUrl)
-                            .append("last_seen_date", c.last_seen_date)
+                            .append("last_seen_date", normalizeLastSeenDate(c.last_seen_date))
                             .append("location_description", c.location_description)
                             .append("location_label", c.location_label)
                         c.last_known_location?.let { ub ->
@@ -267,7 +267,7 @@ fun Application.configureCasosRouting() {
                         .append("description", req.missing_person.description)
                         .append("age", req.missing_person.age)
                         .append("image", photoUrl)
-                        .append("last_seen_date", req.missing_person.last_seen_date)
+                        .append("last_seen_date", normalizeLastSeenDate(req.missing_person.last_seen_date))
                         .append("location_description", req.missing_person.location_description)
                         .append("location_label", locationLabel)
                     req.missing_person.last_known_location?.let { ub ->
@@ -316,7 +316,7 @@ fun Application.configureCasosRouting() {
                         .append("description", req.missing_person.description)
                         .append("age", req.missing_person.age)
                         .append("image", req.missing_person.image)
-                        .append("last_seen_date", req.missing_person.last_seen_date)
+                        .append("last_seen_date", normalizeLastSeenDate(req.missing_person.last_seen_date))
                         .append("location_description", req.missing_person.location_description)
                         .append("location_label", locationLabel)
                     req.missing_person.last_known_location?.let { ub ->
@@ -483,6 +483,11 @@ private fun Document.toCasoResponse(): CasoResponse {
             ?: ""
     )
 }
+
+private val DATE_ONLY = Regex("""^\d{4}-\d{2}-\d{2}$""")
+
+private fun normalizeLastSeenDate(date: String): String =
+    if (date.matches(DATE_ONLY)) "${date}T00:00:00Z" else date
 
 private fun downloadUrl(url: String): Pair<ByteArray, String>? = try {
     val connection = java.net.URI(url).toURL().openConnection() as java.net.HttpURLConnection
