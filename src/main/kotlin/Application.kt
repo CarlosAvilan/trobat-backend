@@ -76,6 +76,9 @@ fun Application.module() {
         kotlinx.coroutines.runBlocking {
             reportes.createIndex(Indexes.geo2dsphere("location"))
             casos.createIndex(Indexes.geo2dsphere("missing_person.last_known_location"))
+            casos.createIndex(
+                Document("missing_person.name", "text").append("desaparecido.nombre", "text")
+            )
         }
     }
 }

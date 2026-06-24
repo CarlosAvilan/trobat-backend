@@ -39,11 +39,22 @@ fun Application.configureCasosRouting() {
                 val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 20
 
                 try {
-                    val filtro = Filters.or(
-                        Filters.regex("missing_person.name", query, "i"),
-                        Filters.regex("desaparecido.nombre", query, "i")
-                    )
-                    val total = casos.countDocuments(filtro)
+                    // Intentar con el índice de texto (palabras completas, insensible a tildes y mayúsculas)
+                    val textFilter = Filters.text(query)
+                    val textTotal = casos.countDocuments(textFilter)
+
+                    // Si el índice de texto no devuelve resultados, hacer fallback a regex
+                    // para cubrir búsquedas parciales (ej: "Mar" → "María")
+                    val (filtro, total) = if (textTotal > 0) {
+                        textFilter to textTotal
+                    } else {
+                        val regexFilter = Filters.or(
+                            Filters.regex("missing_person.name", query, "i"),
+                            Filters.regex("desaparecido.nombre", query, "i")
+                        )
+                        regexFilter to casos.countDocuments(regexFilter)
+                    }
+
                     val lista = casos.find(filtro)
                         .skip(page * limit)
                         .limit(limit)
