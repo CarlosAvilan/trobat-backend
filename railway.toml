@@ -1,0 +1,8 @@
+[build]
+builder = "nixpacks"
+buildCommand = "chmod +x ./gradlew && ./gradlew buildFatJar"
+
+[deploy]
+startCommand = "java -jar build/libs/trobat-backend-all.jar"
+healthcheckPath = "/"
+healthcheckTimeout = 300

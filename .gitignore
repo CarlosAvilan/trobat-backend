@@ -34,3 +34,12 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Local config ###
+local.properties
+.env
+start.ps1
+src/main/resources/firebase-service-account.json
+
+### Uploads ###
+uploads/

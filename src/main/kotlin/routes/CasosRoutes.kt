@@ -1,0 +1,515 @@
+package com.trobatapp.routes
+
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
+import com.trobatapp.casos
+import com.trobatapp.models.*
+import com.trobatapp.service.FirebaseStorageService
+import com.trobatapp.utils.GeocodingUtil
+import com.trobatapp.utils.verificarRol
+import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import org.bson.Document
+import org.bson.types.ObjectId
+import java.time.Instant
+import java.util.Date
+
+fun Application.configureCasosRouting() {
+    routing {
+        route("/casos") {
+
+            // --- PÚBLICO ---
+
+            get("/buscar") {
+                val query = call.request.queryParameters["q"]?.trim()
+                    ?: return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("Parámetro q requerido"))
+                if (query.length < 2)
+                    return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("Mínimo 2 caracteres"))
+                val page  = call.request.queryParameters["page"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 20
+
+                try {
+                    // Intentar con el índice de texto (palabras completas, insensible a tildes y mayúsculas)
+                    val textFilter = Filters.text(query)
+                    val textTotal = casos.countDocuments(textFilter)
+
+                    // Si el índice de texto no devuelve resultados, hacer fallback a regex
+                    // para cubrir búsquedas parciales (ej: "Mar" → "María")
+                    val (filtro, total) = if (textTotal > 0) {
+                        textFilter to textTotal
+                    } else {
+                        val regexFilter = Filters.or(
+                            Filters.regex("missing_person.name", query, "i"),
+                            Filters.regex("desaparecido.nombre", query, "i")
+                        )
+                        regexFilter to casos.countDocuments(regexFilter)
+                    }
+
+                    val lista = casos.find(filtro)
+                        .skip(page * limit)
+                        .limit(limit)
+                        .toList()
+                        .map { it.toCasoResponse() }
+                    call.respond(CasosPaginados(
+                        data = lista,
+                        total = total,
+                        page = page,
+                        limit = limit,
+                        hasMore = (page * limit + lista.size).toLong() < total
+                    ))
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))
+                }
+            }
+
+            get("/cercanos") {
+                val lat = call.request.queryParameters["lat"]?.toDoubleOrNull()
+                    ?: return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("lat requerido"))
+                val lng = call.request.queryParameters["lng"]?.toDoubleOrNull()
+                    ?: return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("lng requerido"))
+                val radiusKm = call.request.queryParameters["radio"]?.toDoubleOrNull()?.coerceIn(1.0, 50.0) ?: 5.0
+                val page  = call.request.queryParameters["page"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 20
+
+                try {
+                    val geoNearStage = Document("\$geoNear", Document()
+                        .append("near", Document("type", "Point").append("coordinates", listOf(lng, lat)))
+                        .append("distanceField", "distance_meters")
+                        .append("maxDistance", radiusKm * 1000)
+                        .append("spherical", true)
+                        .append("key", "missing_person.last_known_location")
+                    )
+
+                    val total = casos.aggregate(listOf(
+                        geoNearStage,
+                        Document("\$count", "total")
+                    )).firstOrNull()?.getInteger("total")?.toLong() ?: 0L
+
+                    val lista = casos.aggregate(listOf(
+                        geoNearStage,
+                        Document("\$skip", page * limit),
+                        Document("\$limit", limit)
+                    )).toList().map { doc ->
+                        val distanceKm = (doc["distance_meters"] as? Number)?.toDouble()?.div(1000.0) ?: 0.0
+                        CasoCercanoResponse(caso = doc.toCasoResponse(), distance_km = distanceKm)
+                    }
+
+                    call.respond(CasosCercanosPaginados(
+                        data = lista,
+                        total = total,
+                        page = page,
+                        limit = limit,
+                        radius_km = radiusKm,
+                        hasMore = (page * limit + lista.size).toLong() < total
+                    ))
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))
+                }
+            }
+
+            get {
+                val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 20
+                try {
+                    val total = casos.countDocuments()
+                    val lista = casos.find()
+                        .skip(page * limit)
+                        .limit(limit)
+                        .toList()
+                        .map { it.toCasoResponse() }
+                    call.respond(CasosPaginados(
+                        data = lista,
+                        total = total,
+                        page = page,
+                        limit = limit,
+                        hasMore = (page * limit + lista.size).toLong() < total
+                    ))
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))
+                }
+            }
+
+            get("/{id}") {
+                val id = call.parameters["id"]
+                    ?: return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID requerido"))
+                if (!ObjectId.isValid(id))
+                    return@get call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID inválido"))
+
+                try {
+                    val caso = casos.find(Filters.eq("_id", ObjectId(id))).firstOrNull()
+                        ?: return@get call.respond(HttpStatusCode.NotFound, MensajeResponse("Caso no encontrado"))
+                    call.respond(caso.toCasoResponse())
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))
+                }
+            }
+
+            // --- SOLO OFICIAL ---
+
+            authenticate("auth-jwt") {
+
+                post("/dataset") {
+                    if (!call.verificarRol("oficial")) return@post
+
+                    val req = try {
+                        call.receive<CargarDatasetRequest>()
+                    } catch (e: Exception) {
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Cuerpo inválido: ${e.localizedMessage}"))
+                    }
+
+                    if (req.casos.isEmpty())
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Dataset vacío"))
+                    if (req.casos.size > 500)
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Máximo 500 casos por lote"))
+
+                    val validStatuses = setOf("active_investigation", "resolved", "closed")
+
+                    val docs = req.casos.map { c ->
+                        val status = c.status.takeIf { it in validStatuses } ?: "active_investigation"
+
+                        val photoUrl: String? = c.image_url?.let { url ->
+                            try {
+                                val (bytes, contentType) = withContext(Dispatchers.IO) { downloadUrl(url) }
+                                    ?: return@let null
+                                withContext(Dispatchers.IO) {
+                                    FirebaseStorageService.uploadImage(bytes, contentType = contentType, folder = "dataset")
+                                }
+                            } catch (e: Exception) { null }
+                        }
+
+                        val missingPersonDoc = Document("name", c.name)
+                            .append("description", c.description)
+                            .append("age", c.age)
+                            .append("image", photoUrl)
+                            .append("last_seen_date", normalizeLastSeenDate(c.last_seen_date))
+                            .append("location_description", c.location_description)
+                            .append("location_label", c.location_label)
+                        c.last_known_location?.let { ub ->
+                            missingPersonDoc.append(
+                                "last_known_location",
+                                Document("type", ub.type).append("coordinates", ub.coordinates)
+                            )
+                        }
+
+                        Document()
+                            .append("missing_person", missingPersonDoc)
+                            .append("external_contact", Document("name", "").append("email", "").append("phone", ""))
+                            .append("assigned_agents", emptyList<ObjectId>())
+                            .append("status", status)
+                            .append("total_reports", 0)
+                            .append("created_at", Date.from(Instant.now()))
+                    }
+
+                    try {
+                        casos.insertMany(docs)
+                        call.respond(HttpStatusCode.Created, CargarDatasetResponse(
+                            inserted = docs.size,
+                            message = "${docs.size} caso(s) insertados exitosamente"
+                        ))
+                    } catch (e: Exception) {
+                        call.respond(HttpStatusCode.InternalServerError, MensajeResponse(e.localizedMessage ?: "Error interno"))
+                    }
+                }
+
+                post {
+                    if (!call.verificarRol("oficial")) return@post
+
+                    var fotoBytes: ByteArray? = null
+                    var datosJson: String? = null
+
+                    try {
+                        val multipart = call.receiveMultipart()
+                        multipart.forEachPart { part ->
+                            when (part) {
+                                is PartData.FileItem -> {
+                                    if (part.name == "foto") {
+                                        fotoBytes = withContext(Dispatchers.IO) { part.streamProvider().readBytes() }
+                                    }
+                                }
+                                is PartData.FormItem -> {
+                                    if (part.name == "datos") datosJson = part.value
+                                }
+                                else -> {}
+                            }
+                            part.dispose()
+                        }
+                    } catch (e: Exception) {
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Multipart inválido: ${e.localizedMessage}"))
+                    }
+
+                    val req = try {
+                        Json.decodeFromString<CrearCasoRequest>(
+                            datosJson ?: return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("Campo 'datos' requerido"))
+                        )
+                    } catch (e: Exception) {
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("datos inválido: ${e.localizedMessage}"))
+                    }
+
+                    if (!ObjectId.isValid(req.admin_officer_id))
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("admin_officer_id inválido"))
+
+                    val agentesInvalidos = req.assigned_agents.filter { !ObjectId.isValid(it) }
+                    if (agentesInvalidos.isNotEmpty())
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("IDs de agentes inválidos: $agentesInvalidos"))
+
+                    val photoUrl: String? = fotoBytes?.takeIf { it.isNotEmpty() }?.let { bytes ->
+                        try {
+                            withContext(Dispatchers.IO) { FirebaseStorageService.uploadImage(bytes) }
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+
+                    val locationLabel = req.missing_person.last_known_location?.let { ub ->
+                        GeocodingUtil.reverseGeocode(lat = ub.latitud, lon = ub.longitud)
+                    }
+
+                    val missingPersonDoc = Document("name", req.missing_person.name)
+                        .append("description", req.missing_person.description)
+                        .append("age", req.missing_person.age)
+                        .append("image", photoUrl)
+                        .append("last_seen_date", normalizeLastSeenDate(req.missing_person.last_seen_date))
+                        .append("location_description", req.missing_person.location_description)
+                        .append("location_label", locationLabel)
+                    req.missing_person.last_known_location?.let { ub ->
+                        missingPersonDoc.append(
+                            "last_known_location",
+                            Document("type", ub.type).append("coordinates", ub.coordinates)
+                        )
+                    }
+
+                    val contactDoc = Document("name", req.external_contact.name)
+                        .append("email", req.external_contact.email)
+                        .append("phone", req.external_contact.phone)
+
+                    val casoDoc = Document("admin_officer_id", ObjectId(req.admin_officer_id))
+                        .append("assigned_agents", req.assigned_agents.map { ObjectId(it) })
+                        .append("missing_person", missingPersonDoc)
+                        .append("external_contact", contactDoc)
+                        .append("status", "active_investigation")
+                        .append("total_reports", 0)
+                        .append("created_at", Date.from(Instant.now()))
+
+                    casos.insertOne(casoDoc)
+                    val newId = casoDoc.getObjectId("_id").toHexString()
+                    call.respond(HttpStatusCode.Created, CrearCasoResponse(id = newId, message = "Caso creado exitosamente"))
+                }
+
+                patch("/{id}") {
+                    if (!call.verificarRol("oficial")) return@patch
+
+                    val id = call.parameters["id"]
+                        ?: return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID requerido"))
+                    if (!ObjectId.isValid(id))
+                        return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID inválido"))
+
+                    val req = try {
+                        call.receive<EditarCasoRequest>()
+                    } catch (e: Exception) {
+                        return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("Cuerpo inválido: ${e.localizedMessage}"))
+                    }
+
+                    val locationLabel = req.missing_person.last_known_location?.let { ub ->
+                        GeocodingUtil.reverseGeocode(lat = ub.latitud, lon = ub.longitud)
+                    }
+
+                    val missingPersonDoc = Document("name", req.missing_person.name)
+                        .append("description", req.missing_person.description)
+                        .append("age", req.missing_person.age)
+                        .append("image", req.missing_person.image)
+                        .append("last_seen_date", normalizeLastSeenDate(req.missing_person.last_seen_date))
+                        .append("location_description", req.missing_person.location_description)
+                        .append("location_label", locationLabel)
+                    req.missing_person.last_known_location?.let { ub ->
+                        missingPersonDoc.append(
+                            "last_known_location",
+                            Document("type", ub.type).append("coordinates", ub.coordinates)
+                        )
+                    }
+
+                    val contactDoc = Document("name", req.external_contact.name)
+                        .append("email", req.external_contact.email)
+                        .append("phone", req.external_contact.phone)
+
+                    val result = casos.updateOne(
+                        Filters.eq("_id", ObjectId(id)),
+                        Updates.combine(
+                            Updates.set("missing_person", missingPersonDoc),
+                            Updates.set("external_contact", contactDoc)
+                        )
+                    )
+
+                    if (result.matchedCount == 0L) call.respond(HttpStatusCode.NotFound, MensajeResponse("Caso no encontrado"))
+                    else call.respond(MensajeResponse("Caso actualizado exitosamente"))
+                }
+
+                patch("/{id}/estado") {
+                    if (!call.verificarRol("oficial")) return@patch
+
+                    val id = call.parameters["id"]
+                        ?: return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID requerido"))
+                    if (!ObjectId.isValid(id))
+                        return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID inválido"))
+
+                    val req = try {
+                        call.receive<ActualizarEstadoRequest>()
+                    } catch (e: Exception) {
+                        return@patch call.respond(HttpStatusCode.BadRequest, MensajeResponse("Cuerpo inválido"))
+                    }
+
+                    val validStatuses = setOf("active_investigation", "resolved", "closed")
+                    if (req.status !in validStatuses)
+                        return@patch call.respond(
+                            HttpStatusCode.BadRequest,
+                            MensajeResponse("Estado inválido. Opciones: $validStatuses")
+                        )
+
+                    val result = casos.updateOne(
+                        Filters.eq("_id", ObjectId(id)),
+                        Updates.set("status", req.status)
+                    )
+                    if (result.matchedCount == 0L) call.respond(HttpStatusCode.NotFound, MensajeResponse("Caso no encontrado"))
+                    else call.respond(MensajeResponse("Estado actualizado a ${req.status}"))
+                }
+
+                post("/{id}/agentes/{agenteId}") {
+                    if (!call.verificarRol("oficial")) return@post
+
+                    val id = call.parameters["id"]
+                        ?: return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID requerido"))
+                    val agenteId = call.parameters["agenteId"]
+                        ?: return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID de agente requerido"))
+                    if (!ObjectId.isValid(id) || !ObjectId.isValid(agenteId))
+                        return@post call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID inválido"))
+
+                    val result = casos.updateOne(
+                        Filters.eq("_id", ObjectId(id)),
+                        Updates.addToSet("assigned_agents", ObjectId(agenteId))
+                    )
+                    if (result.matchedCount == 0L) call.respond(HttpStatusCode.NotFound, MensajeResponse("Caso no encontrado"))
+                    else call.respond(MensajeResponse("Agente agregado al caso"))
+                }
+
+                delete("/{id}/agentes/{agenteId}") {
+                    if (!call.verificarRol("oficial")) return@delete
+
+                    val id = call.parameters["id"]
+                        ?: return@delete call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID requerido"))
+                    val agenteId = call.parameters["agenteId"]
+                        ?: return@delete call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID de agente requerido"))
+                    if (!ObjectId.isValid(id) || !ObjectId.isValid(agenteId))
+                        return@delete call.respond(HttpStatusCode.BadRequest, MensajeResponse("ID inválido"))
+
+                    val result = casos.updateOne(
+                        Filters.eq("_id", ObjectId(id)),
+                        Updates.pull("assigned_agents", ObjectId(agenteId))
+                    )
+                    if (result.matchedCount == 0L) call.respond(HttpStatusCode.NotFound, MensajeResponse("Caso no encontrado"))
+                    else call.respond(MensajeResponse("Agente removido del caso"))
+                }
+            }
+        }
+    }
+}
+
+private fun Document.toCasoResponse(): CasoResponse {
+    // Compatibilidad con documentos antiguos (campo en español) y nuevos (en inglés)
+    val missingDoc = get("missing_person", Document::class.java)
+        ?: get("desaparecido", Document::class.java)
+        ?: Document()
+    val contactDoc = get("external_contact", Document::class.java)
+        ?: get("representante_externo", Document::class.java)
+        ?: Document()
+    val locDoc = missingDoc.get("last_known_location", Document::class.java)
+        ?: missingDoc.get("ultima_ubicacion", Document::class.java)
+
+    val location = locDoc?.let {
+        val coords = it.getList("coordinates", Number::class.java) ?: emptyList()
+        Ubicacion(type = it.getString("type") ?: "Point", coordinates = coords.map { n -> n.toDouble() })
+    }
+
+    val assignedAgents = try {
+        getList("assigned_agents", ObjectId::class.java)?.map { it.toHexString() }
+            ?: getList("agentes_asignados", ObjectId::class.java)?.map { it.toHexString() }
+            ?: emptyList()
+    } catch (e: Exception) {
+        getList("assigned_agents", String::class.java)
+            ?: getList("agentes_asignados", String::class.java)
+            ?: emptyList()
+    }
+
+    val adminOfficerId = try {
+        getObjectId("admin_officer_id").toHexString()
+    } catch (e: Exception) {
+        try {
+            getObjectId("oficial_administrador_id").toHexString()
+        } catch (e2: Exception) {
+            getString("admin_officer_id") ?: getString("oficial_administrador_id") ?: ""
+        }
+    }
+
+    val status = when (val raw = getString("status") ?: getString("estado")) {
+        "active_investigation", "resolved", "closed" -> raw
+        "investigacion_activa", "suspendido" -> "active_investigation"
+        "resuelto" -> "resolved"
+        "cerrado" -> "closed"
+        else -> "active_investigation"
+    }
+
+    return CasoResponse(
+        id = getObjectId("_id").toHexString(),
+        admin_officer_id = adminOfficerId,
+        assigned_agents = assignedAgents,
+        missing_person = Desaparecido(
+            name = missingDoc.getString("name") ?: missingDoc.getString("nombre") ?: "",
+            description = missingDoc.getString("description") ?: missingDoc.getString("descripcion") ?: "",
+            age = missingDoc.getInteger("age") ?: missingDoc.getInteger("edad") ?: 0,
+            image = missingDoc.getString("image") ?: missingDoc.getString("foto") ?: "",
+            last_seen_date = missingDoc.getString("last_seen_date") ?: missingDoc.getString("fecha_ultima_vez_visto") ?: "",
+            location_description = missingDoc.getString("location_description") ?: missingDoc.getString("descripcion_ubicacion") ?: "",
+            last_known_location = location,
+            location_label = missingDoc.getString("location_label")
+        ),
+        external_contact = RepresentanteExterno(
+            name = contactDoc.getString("name") ?: contactDoc.getString("nombre") ?: "",
+            email = contactDoc.getString("email") ?: "",
+            phone = contactDoc.getString("phone") ?: contactDoc.getString("telefono") ?: ""
+        ),
+        status = status,
+        total_reports = getInteger("total_reports") ?: getInteger("total_reportes") ?: 0,
+        created_at = getDate("created_at")?.toInstant()?.toString()
+            ?: getDate("fecha_creacion")?.toInstant()?.toString()
+            ?: get("created_at")?.toString()
+            ?: get("fecha_creacion")?.toString()
+            ?: ""
+    )
+}
+
+private val DATE_ONLY = Regex("""^\d{4}-\d{2}-\d{2}$""")
+
+private fun normalizeLastSeenDate(date: String): String =
+    if (date.matches(DATE_ONLY)) "${date}T00:00:00Z" else date
+
+private fun downloadUrl(url: String): Pair<ByteArray, String>? = try {
+    val connection = java.net.URI(url).toURL().openConnection() as java.net.HttpURLConnection
+    connection.connectTimeout = 8000
+    connection.readTimeout = 8000
+    connection.setRequestProperty("User-Agent", "TrobatApp/1.0")
+    val contentType = connection.contentType?.substringBefore(";")?.trim()
+        ?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
+    val bytes = connection.inputStream.use { it.readBytes() }
+    connection.disconnect()
+    if (bytes.isNotEmpty()) Pair(bytes, contentType) else null
+} catch (e: Exception) {
+    null
+}
