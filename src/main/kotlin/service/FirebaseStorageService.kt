@@ -10,11 +10,19 @@ object FirebaseStorageService {
         get() = System.getenv("FIREBASE_STORAGE_BUCKET") ?: "trobat-40cea.firebasestorage.app"
 
     fun uploadImage(imageBytes: ByteArray, contentType: String = "image/jpeg", folder: String = "casos"): String {
-        val fileName = "$folder/${UUID.randomUUID()}.jpg"
+        return uploadFile(imageBytes, contentType, folder, "jpg")
+    }
+
+    fun uploadAudio(audioBytes: ByteArray, contentType: String = "audio/mpeg", folder: String = "audio_reportes"): String {
+        return uploadFile(audioBytes, contentType, folder, "mp3")
+    }
+
+    private fun uploadFile(bytes: ByteArray, contentType: String, folder: String, extension: String): String {
+        val fileName = "$folder/${UUID.randomUUID()}.$extension"
         val downloadToken = UUID.randomUUID().toString()
 
         val bucket = StorageClient.getInstance().bucket(bucketName)
-        val blob = bucket.create(fileName, imageBytes, contentType)
+        val blob = bucket.create(fileName, bytes, contentType)
 
         blob.toBuilder()
             .setMetadata(mapOf("firebaseStorageDownloadTokens" to downloadToken))

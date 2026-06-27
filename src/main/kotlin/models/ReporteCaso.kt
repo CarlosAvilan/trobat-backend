@@ -20,6 +20,7 @@ data class CrearReporteRequest(
     val location: Ubicacion,
     val description: String,
     val photo_url: String? = null,
+    val audio_url: String? = null,
     val police_priority: Boolean = false,
     val security_metadata: SecurityMetadata = SecurityMetadata(),
     val contact_info: ContactInfo = ContactInfo()
@@ -40,6 +41,7 @@ data class ReporteCasoResponse(
     val timestamp: String,
     val description: String,
     val photo_url: String?,
+    val audio_url: String? = null,
     val security_metadata: SecurityMetadata,
     val contact_info: ContactInfo,
     val validated: Boolean,

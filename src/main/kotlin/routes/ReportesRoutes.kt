@@ -57,9 +57,10 @@ fun Application.configureReportesRouting() {
 
         route("/reportes") {
 
-            // --- PÚBLICO: crear reporte (avistamiento anónimo) ---
+            // --- PÚBLICO: crear reporte (avistamiento con foto y audio) ---
             post {
                 var fotoBytes: ByteArray? = null
+                var audioBytes: ByteArray? = null
                 var datosJson: String? = null
 
                 try {
@@ -67,8 +68,9 @@ fun Application.configureReportesRouting() {
                     multipart.forEachPart { part ->
                         when (part) {
                             is PartData.FileItem -> {
-                                if (part.name == "foto") {
-                                    fotoBytes = withContext(Dispatchers.IO) { part.streamProvider().readBytes() }
+                                when (part.name) {
+                                    "foto" -> fotoBytes = withContext(Dispatchers.IO) { part.streamProvider().readBytes() }
+                                    "audio" -> audioBytes = withContext(Dispatchers.IO) { part.streamProvider().readBytes() }
                                 }
                             }
                             is PartData.FormItem -> {
@@ -97,12 +99,17 @@ fun Application.configureReportesRouting() {
                 if (casoExiste == null)
                     return@post call.respond(HttpStatusCode.NotFound, MensajeResponse("Caso no encontrado"))
 
+                // Subida de archivos a Firebase
                 val photoUrl: String? = fotoBytes?.takeIf { it.isNotEmpty() }?.let { bytes ->
                     try {
                         withContext(Dispatchers.IO) { FirebaseStorageService.uploadImage(bytes, folder = "reportes") }
-                    } catch (e: Exception) {
-                        null
-                    }
+                    } catch (e: Exception) { null }
+                }
+
+                val audioUrl: String? = audioBytes?.takeIf { it.isNotEmpty() }?.let { bytes ->
+                    try {
+                        withContext(Dispatchers.IO) { FirebaseStorageService.uploadAudio(bytes, folder = "audio_reportes") }
+                    } catch (e: Exception) { null }
                 }
 
                 // Validación cruzada EXIF vs GPS declarado
@@ -136,6 +143,7 @@ fun Application.configureReportesRouting() {
                     .append("timestamp", Date.from(Instant.now()))
                     .append("description", req.description)
                     .append("photo_url", photoUrl)
+                    .append("audio_url", audioUrl)
                     .append("security_metadata", securityDoc)
                     .append("contact_info", contactDoc)
                     .append("validated", false)
@@ -278,6 +286,7 @@ private fun Document.toReporteCasoResponse(): ReporteCasoResponse {
             ?: "",
         description = getString("description") ?: getString("descripcion") ?: "",
         photo_url = getString("photo_url") ?: getString("foto_url"),
+        audio_url = getString("audio_url"),
         security_metadata = SecurityMetadata(
             anonymous = securityDoc.getBoolean("anonymous") ?: securityDoc.getBoolean("anonimo") ?: true
         ),
